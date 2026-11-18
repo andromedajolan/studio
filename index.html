@@ -125,6 +125,15 @@ button.primary{background:var(--ac);color:#04121a;border-color:var(--ac);font-we
 
 #mview .mmatch .mrow{border-top:1px solid var(--ln);padding:8px 0}#mview .mmatch .mt{margin:3px 0;font-size:13px}#mview .mmatch .now{font-size:11.5px;margin-bottom:2px}#mview .mmatch select{flex:1;background:#000;border:1px solid var(--ln);border-radius:6px;padding:5px;color:var(--tx)}
 textarea.mutes{width:100%;box-sizing:border-box;background:#000;border:1px solid var(--ln);border-radius:6px;padding:8px;color:var(--tx);font:13px ui-monospace,Menlo,monospace;resize:vertical;-webkit-user-select:text;user-select:text}
+#mview .grrow{display:flex;align-items:center;gap:8px;margin:4px 0;font-size:12px}
+#mview .grrow span{width:78px;color:var(--dim,#9a9aa6)}
+#mview .grrow .tbar{flex:1}
+#mview .grrow b{width:62px;text-align:right;font-variant-numeric:tabular-nums}
+#mview .mdiff{margin:6px 8px}
+#mview .dgrid{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+#mview .dcell{background:#1a1a20;border-radius:6px;padding:4px 10px;display:flex;flex-direction:column;min-width:96px;font-size:12px}
+#mview .dcell b{font-size:15px;font-variant-numeric:tabular-nums}
+#mview .dcell b.up{color:#7fd6a0}#mview .dcell b.dn{color:#e6a46a}
 </style></head>
 <body>
 <div id="app">
@@ -1937,20 +1946,20 @@ function bqCoef(type,f,g,q,sr){
  else{const al=s/2*Math.SQRT2,k=2*Math.sqrt(A)*al;b0=A*((A+1)+(A-1)*c+k);b1=-2*A*((A-1)+(A+1)*c);b2=A*((A+1)+(A-1)*c-k);a0=(A+1)-(A-1)*c+k;a1=2*((A-1)-(A+1)*c);a2=(A+1)-(A-1)*c-k}
  return[b0/a0,b1/a0,b2/a0,a1/a0,a2/a0]}
 // 4x true-peak interpolation taps (12 per phase, windowed sinc) for the points 1/4, 2/4, 3/4 between samples
-const TPK=[0.25,0.5,0.75].map(function(fr){const t=[];let s=0;for(let j=0;j<12;j++){const a=(j-6)+fr,sc=Math.abs(a)<1e-9?1:Math.sin(Math.PI*a)/(Math.PI*a),w=0.5+0.5*Math.cos(Math.PI*a/6.5);t.push(sc*w);s+=sc*w}return t.map(function(v){return v/s})});
+const TPK=[0.25,0.5,0.75].map(function(fr){const t=[];let s=0;for(let j=0;j<24;j++){const a=(j-12)+fr,sc=Math.abs(a)<1e-9?1:Math.sin(Math.PI*a)/(Math.PI*a),w=0.5+0.5*Math.cos(Math.PI*a/12.5);t.push(sc*w);s+=sc*w}return t.map(function(v){return v/s})});
 // peak around the sample that is 6 samples old in ring h (length 16), newest at index i
-function tp4(h,i){let p=Math.abs(h[(i-6)&15]);for(let k=0;k<3;k++){const t=TPK[k];let y=0;for(let j=0;j<12;j++)y+=h[(i-j)&15]*t[j];if(y<0)y=-y;if(y>p)p=y}return p}
+function tp4(h,i){let p=Math.abs(h[(i-12)&31]);for(let k=0;k<3;k++){const t=TPK[k];let y=0;for(let j=0;j<24;j++)y+=h[(i-j)&31]*t[j];if(y<0)y=-y;if(y>p)p=y}return p}
 
 class MasterDSP{
- constructor(sr){this.sr=sr;this.LA=Math.ceil(0.005*sr);this.D=this.LA+6;this.latency=this.D;
+ constructor(sr){this.sr=sr;this.LA=Math.ceil(0.005*sr);this.D=this.LA+12;this.latency=this.D;
   this.eqz=new Float64Array(5*2*2);this.cf=[[1,0,0,0,0],[1,0,0,0,0],[1,0,0,0,0],[1,0,0,0,0],[1,0,0,0,0]];this.eqOn=[0,0,0,0,0];
-  this.scx=[0,0];this.scy=[0,0];this.cur=0;
-  this.dl=[new Float32Array(this.D),new Float32Array(this.D)];this.dw=0;this.th=[new Float32Array(16),new Float32Array(16)];this.ti=0;
+  this.scx=[0,0];this.scy=[0,0];this.cur=0;this.grC=0;this.grL=0;this.inG=1;
+  this.dl=[new Float32Array(this.D),new Float32Array(this.D)];this.dw=0;this.th=[new Float32Array(32),new Float32Array(32)];this.ti=0;
   const C=this.LA+2;this.dqv=new Float64Array(C);this.dqi=new Float64Array(C);this.dh=0;this.dt=0;this.n=0;this.C=C;
   this.mb=new Float64Array(this.LA).fill(1);this.mi=0;this.msum=this.LA;this.r=1;
   this.tL=new Float32Array(128);this.tR=new Float32Array(128);this.p=null;this.setParams(MasterDSP.defaults())}
  static defaults(){return{on:true,hp:{on:true,f:25},eq:{on:true,ls:{f:120,g:0},lm:{f:350,g:0,q:0.9},pr:{f:3200,g:0,q:0.8},hs:{f:9000,g:0}},
-  width:1,comp:{on:true,thr:-8,ratio:1.6,att:30,rel:180,knee:8,mk:0},lim:{on:true,drive:0,ceil:-1,rel:100},trim:0}}
+  width:1,comp:{on:true,thr:-8,ratio:1.6,att:30,rel:180,knee:8,mk:0},lim:{on:true,drive:0,ceil:-1,rel:100},trim:0,inTrim:0}}
  setParams(p){this.p=p;const sr=this.sr,e=p.eq||{};
   const set=(i,on,c)=>{this.eqOn[i]=on?1:0;if(on)this.cf[i]=c};
   set(0,p.on&&p.hp&&p.hp.on,bqCoef('hp',p.hp?p.hp.f:25,0,0.707,sr));
@@ -1961,11 +1970,13 @@ class MasterDSP{
   set(4,eo&&e.hs&&Math.abs(e.hs.g)>0.01,bqCoef('hs',e.hs?e.hs.f:9000,e.hs?e.hs.g:0,1,sr));
   const c=p.comp||{};this.cOn=!!(p.on&&c.on);this.cThr=c.thr==null?-8:c.thr;this.cRat=Math.max(1,c.ratio||1);this.cKnee=Math.max(0.1,c.knee==null?8:c.knee);this.cMk=c.mk||0;
   this.cA=1-Math.exp(-1/(Math.max(0.1,c.att||30)/1000*sr));this.cR=1-Math.exp(-1/(Math.max(1,c.rel||180)/1000*sr));this.hpa=1/(1+TWOPI*90/sr);
-  const l=p.lim||{};this.lOn=!!(p.on&&l.on);this.drive=Math.pow(10,(this.lOn?(l.drive||0):0)/20);this.ceil=Math.pow(10,(l.ceil==null?-1:l.ceil)/20);this.ceilDet=this.ceil*0.9886;this.relC=1-Math.exp(-1/(Math.max(5,l.rel||100)/1000*sr));this.wid=p.on&&p.width!=null?p.width:1;
-  this.trim=Math.pow(10,Math.min(0,p.on?(p.trim||0):0)/20)}
+  const l=p.lim||{};this.lOn=!!(p.on&&l.on);this.drive=Math.pow(10,(this.lOn?(l.drive||0):0)/20);this.ceil=Math.pow(10,(l.ceil==null?-1:l.ceil)/20);this.ceilDet=this.ceil*0.955;this.relC=1-Math.exp(-1/(Math.max(5,l.rel||100)/1000*sr));this.wid=p.on&&p.width!=null?p.width:1;
+  this.trim=Math.pow(10,Math.min(0,p.on?(p.trim||0):0)/20);this.inG=Math.pow(10,Math.min(0,p.on?(p.inTrim||0):0)/20)}
  process(inL,inR,oL,oR,n){
   if(this.tL.length<n){this.tL=new Float32Array(n);this.tR=new Float32Array(n)}
   const A=this.tL,B=this.tR;A.set(inL.subarray?inL.subarray(0,n):inL);B.set(inR.subarray?inR.subarray(0,n):inR);
+  if(this.inG!==1){const ig=this.inG;for(let i=0;i<n;i++){A[i]*=ig;B[i]*=ig}}
+  let gC=0,gL=1;
   // 1) low cut + EQ (transposed direct form II)
   for(let s=0;s<5;s++){if(!this.eqOn[s])continue;const c=this.cf[s],b0=c[0],b1=c[1],b2=c[2],a1=c[3],a2=c[4];
    for(let ch=0;ch<2;ch++){const x=ch?B:A,o=(s*2+ch)*2;let z1=this.eqz[o],z2=this.eqz[o+1];
@@ -1977,7 +1988,7 @@ class MasterDSP{
    for(let i=0;i<n;i++){const l=A[i],r=B[i];y0=ha*(y0+l-x0);x0=l;y1=ha*(y1+r-x1);x1=r;
     let pk=Math.max(y0<0?-y0:y0,y1<0?-y1:y1);if(pk<1e-6)pk=1e-6;const lv=20*Math.log10(pk),ov=lv-thr;let gr;
     if(2*ov<-kn)gr=0;else if(2*Math.abs(ov)<=kn){const t=ov+kn/2;gr=k1*t*t/(2*kn)}else gr=k1*ov;
-    cur+=(gr<cur?ca:cr)*(gr-cur);const g=Math.pow(10,(cur+mk)/20);A[i]=l*g;B[i]=r*g}
+    cur+=(gr<cur?ca:cr)*(gr-cur);const g=Math.pow(10,(cur+mk)/20);A[i]=l*g;B[i]=r*g;if(cur<gC)gC=cur}
    this.cur=cur;this.scx[0]=x0;this.scx[1]=x1;this.scy[0]=y0;this.scy[1]=y1}
   // 3) look-ahead true-peak limiter (always delays by D samples so bypass stays time-aligned)
   const D=this.D,LA=this.LA,C=this.C,dq=this.dqv,di=this.dqi,mb=this.mb,drv=this.drive,ceil=this.ceil,cd=this.ceilDet,lOn=this.lOn,relC=this.relC,trim=this.trim;
@@ -1985,22 +1996,23 @@ class MasterDSP{
   for(let i=0;i<n;i++){let xl=A[i]*drv,xr=B[i]*drv;
    const ol=d0[w],or=d1[w];d0[w]=xl;d1[w]=xr;w++;if(w===D)w=0;
    let gOut=1;
-   if(lOn){gOut=r;ti=(ti+1)&15;h0[ti]=xl;h1[ti]=xr;
+   if(lOn){gOut=r;ti=(ti+1)&31;h0[ti]=xl;h1[ti]=xr;
     let pk=tp4(h0,ti),p2=tp4(h1,ti);if(p2>pk)pk=p2;const tg=pk>cd?cd/pk:1;
     while(dt>dh){const q=(dt-1)%C;if(dq[q]>=tg)dt--;else break}
     dq[dt%C]=tg;di[dt%C]=nn;dt++;
     while(di[dh%C]<=nn-LA)dh++;
     const m=dq[dh%C];msum+=m-mb[mi];mb[mi]=m;mi++;if(mi===LA)mi=0;const b=msum/LA;
-    r=b<r?b:r+(b-r)*relC;nn++}
+    r=b<r?b:r+(b-r)*relC;nn++;if(r<gL)gL=r}
    let yl=ol*gOut,yr=or*gOut;
    if(lOn){if(yl>ceil)yl=ceil;else if(yl<-ceil)yl=-ceil;if(yr>ceil)yr=ceil;else if(yr<-ceil)yr=-ceil}
    oL[i]=yl*trim;oR[i]=yr*trim}
-  this.dw=w;this.ti=ti;this.dh=dh;this.dt=dt;this.n=nn;this.mi=mi;this.msum=msum;this.r=r}}
+  this.dw=w;this.ti=ti;this.dh=dh;this.dt=dt;this.n=nn;this.mi=mi;this.msum=msum;this.r=r;
+  if(gC<this.grC)this.grC=gC;const gl=gL<1?20*Math.log10(Math.max(gL,1e-4)):0;if(gl<this.grL)this.grL=gl}}
 
 // ---- loudness meter: ITU-R BS.1770 K-weighting, momentary / short-term / gated integrated, true peak, stereo
 class LoudDSP{
  constructor(sr,o){this.sr=sr;this.sub=Math.round(sr*0.1);this.s=new Float64Array(8);this.acc=0;this.cnt=0;this.ring=new Float64Array(30);this.ri=0;this.nb=0;
-  this.hE=new Float64Array(1100);this.hC=new Float64Array(1100);this.lC=new Float64Array(1100);this.tp=!o||o.tp!==false;this.h=[new Float32Array(16),new Float32Array(16)];this.hi=0;this.warm=0;
+  this.hE=new Float64Array(1100);this.hC=new Float64Array(1100);this.lC=new Float64Array(1100);this.tp=!o||o.tp!==false;this.h=[new Float32Array(32),new Float32Array(32)];this.hi=0;this.warm=0;
   this.bTp=0;this.bPk=0;this.allTp=0;this.allPk=0;this.ll=0;this.rr=0;this.lr=0;this.mm=0;this.ss=0;this.tll=0;this.trr=0;this.tlr=0;this.tmm=0;this.tss=0;this.onBlock=null;this.mom=-120;this.sht=-120}
  resetIntegrated(){this.hE.fill(0);this.hC.fill(0);this.lC.fill(0);this.allTp=0;this.allPk=0;this.nb=0}
  process(L,R,n){const s=this.s;let acc=this.acc,cnt=this.cnt,tp=this.tp,hi=this.hi;
@@ -2008,7 +2020,7 @@ class LoudDSP{
    let v=xl,y=1.53512485958697*v+s[0];s[0]=-2.69169618940638*v+1.69065929318241*y+s[1];s[1]=1.19839281085285*v-0.73248077421585*y;v=y;y=v+s[2];s[2]=-2*v+1.99004745483398*y+s[3];s[3]=v-0.99007225036621*y;acc+=y*y;
    v=xr;y=1.53512485958697*v+s[4];s[4]=-2.69169618940638*v+1.69065929318241*y+s[5];s[5]=1.19839281085285*v-0.73248077421585*y;v=y;y=v+s[6];s[6]=-2*v+1.99004745483398*y+s[7];s[7]=v-0.99007225036621*y;acc+=y*y;
    const al=xl<0?-xl:xl,ar=xr<0?-xr:xr;if(al>this.bPk)this.bPk=al;if(ar>this.bPk)this.bPk=ar;
-   if(tp){hi=(hi+1)&15;this.h[0][hi]=xl;this.h[1][hi]=xr;const p=Math.max(tp4(this.h[0],hi),tp4(this.h[1],hi));if(p>this.bTp)this.bTp=p}
+   if(tp){hi=(hi+1)&31;this.h[0][hi]=xl;this.h[1][hi]=xr;const p=Math.max(tp4(this.h[0],hi),tp4(this.h[1],hi));if(p>this.bTp)this.bTp=p}
    this.ll+=xl*xl;this.rr+=xr*xr;this.lr+=xl*xr;const m=(xl+xr)*0.5,sd=(xl-xr)*0.5;this.mm+=m*m;this.ss+=sd*sd;
    if(++cnt>=this.sub){this.block(acc/cnt);acc=0;cnt=0}}
   this.acc=acc;this.cnt=cnt;this.hi=hi}
@@ -2051,8 +2063,8 @@ class SpecDSP{
 // processors that only exist inside the AudioWorklet
 const MDSP_WORKLET = MDSP_SRC + String.raw`
 class MasterFx extends AudioWorkletProcessor{
- constructor(){super();this.d=new MasterDSP(sampleRate);this.port.onmessage=e=>{if(e.data&&e.data.chain)this.d.setParams(e.data.chain)}}
- process(i,o){const a=i[0],b=o[0];if(!a||!a.length||!b||!b.length)return true;const L=a[0],R=a[1]||a[0];this.d.process(L,R,b[0],b[1]||b[0],L.length);return true}}
+ constructor(){super();this.d=new MasterDSP(sampleRate);this.k=0;this.port.onmessage=e=>{if(e.data&&e.data.chain)this.d.setParams(e.data.chain)}}
+ process(i,o){const a=i[0],b=o[0];if(!a||!a.length||!b||!b.length)return true;const L=a[0],R=a[1]||a[0];this.d.process(L,R,b[0],b[1]||b[0],L.length);if(++this.k>=12){this.k=0;this.port.postMessage({gc:this.d.grC,gl:this.d.grL});this.d.grC=0;this.d.grL=0}return true}}
 registerProcessor('master-fx',MasterFx);
 class MasterMeter extends AudioWorkletProcessor{
  constructor(){super();this.l=new LoudDSP(sampleRate,{tp:true});this.l.onBlock=b=>this.port.postMessage(b);this.port.onmessage=e=>{if(e.data==='reset')this.l.resetIntegrated()}}
@@ -2085,7 +2097,8 @@ const MD = (new Function(MDSP_SRC + '\nreturn { MasterDSP, LoudDSP, SpecDSP, SPE
 // ---- mastering: works on ONE stereo mix — either a finished file (e.g. a full Suno song) or the
 // multitrack project bounced to a single mix. Heavy lifting streams through a worker, chunk by chunk.
 const deepMerge = (d, o) => { if (o == null || typeof o !== 'object' || Array.isArray(o)) return o === undefined ? d : o; const r = Array.isArray(d) ? d.slice() : { ...d }; for (const k in o) r[k] = (d && typeof d[k] === 'object' && !Array.isArray(d[k])) ? deepMerge(d[k], o[k]) : o[k]; return r; };
-function masterDefaults() { const simple = { intensity: 35, tone: 0 }; return { src: null, chain: simpleToChain(MD.MasterDSP.defaults(), simple), simple, refs: [], match: true, sel: 'B', used: false }; }
+const QUICK_DEF = { intensity: 50, tone: 0 };
+function masterDefaults() { const simple = { ...QUICK_DEF }; return { src: null, chain: simpleToChain(MD.MasterDSP.defaults(), simple), simple, refs: [], match: true, sel: 'B', used: false }; }
 function normalizeMaster(m) { const d = masterDefaults(); const r = deepMerge(d, m || {}); r.refs = (m && m.refs) || []; r.src = (m && m.src) || null; return r; }
 const chainKey = c => JSON.stringify(c);
 const fmtL = v => v == null || v <= -119 ? '—' : v.toFixed(1);
@@ -2095,8 +2108,9 @@ function simpleToChain(chain, s) {
   const I = clamp(s.intensity, 0, 100), T = clamp(s.tone, -100, 100), c = chain;
   c.comp.on = I > 2; c.comp.thr = +(-6 - 0.14 * I).toFixed(1); c.comp.ratio = +(1.4 + I * 0.018).toFixed(2); c.comp.att = 30; c.comp.rel = 180; c.comp.knee = 8; c.comp.mk = +(I * 0.03).toFixed(1);
   c.lim.on = true; c.lim.drive = +(I * 0.09).toFixed(1); c.lim.ceil = c.lim.ceil == null ? -1 : c.lim.ceil;
-  c.eq.hs.f = 8000; c.eq.hs.g = +(T > 0 ? T * 0.04 : T * 0.03).toFixed(1);
-  c.eq.ls.f = 140; c.eq.ls.g = +(T < 0 ? -T * 0.03 : -T * 0.01).toFixed(1);
+  c.eq.hs.f = 8000; c.eq.hs.g = +(T > 0 ? T * 0.06 : T * 0.045).toFixed(1);          // Brighter: up to +6 dB air; Warmer: up to -4.5 dB
+  c.eq.ls.f = 140; c.eq.ls.g = +(T < 0 ? -T * 0.05 : -T * 0.02).toFixed(1);            // Warmer: up to +5 dB weight; Brighter: up to -2 dB
+  c.eq.pr.f = 3200; c.eq.pr.g = +(T > 0 ? T * 0.02 : T * 0.015).toFixed(1);             // a touch of bite / softness with it
   return c;
 }
 
@@ -2243,9 +2257,9 @@ const MP = {
     if (this.built) return; const ctx = Engine.ctx; await Engine.fxReady;
     await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([MDSP_WORKLET], { type: 'text/javascript' })));
     const G = () => ctx.createGain(), g = this.g = { src: G(), ref: G(), dry: G(), mas: G(), rf: G(), mon: G() };
-    this.delay = ctx.createDelay(0.1); this.delay.delayTime.value = Math.ceil(0.005 * SR + 6) / SR;
+    this.delay = ctx.createDelay(0.1); this.delay.delayTime.value = Math.ceil(0.005 * SR + 12) / SR;
     this.chain = new AudioWorkletNode(ctx, 'master-fx', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
-    g.src.connect(this.delay); this.delay.connect(g.dry); g.src.connect(this.chain); this.chain.connect(g.mas); g.ref.connect(g.rf);
+    g.src.connect(this.delay); this.delay.connect(g.dry); g.src.connect(this.chain); this.chain.connect(g.mas); this.chain.port.onmessage = e => { const d = e.data; if (d && d.gc != null) this.gr = d; }; g.ref.connect(g.rf);
     g.dry.connect(g.mon); g.mas.connect(g.mon); g.rf.connect(g.mon);
     for (const n of [g.dry, g.mas, g.rf]) n.gain.value = 0;
     const lim = makeLimiter(ctx, g.mon); // safety only: a level-matched boost can never clip the speakers
@@ -2382,10 +2396,13 @@ const MUI = {
   },
   meters() {
     const e = this.e, c = (k, t, big) => { e[k] = h('div', { class: 'mv' }, '—'); return h('div', { class: 'mcard' + (big ? ' wide' : '') }, h('div', { class: 'ml' }, t), e[k]); };
-    e.tpbar = h('i'); e.rbar = h('i');
+    e.tpbar = h('i'); e.rbar = h('i'); e.grcb = h('i'); e.grlb = h('i');
     return h('div', { class: 'mmeters' }, c('mom', 'Momentary LUFS'), c('sht', 'Short-term LUFS'), c('int', 'Integrated LUFS (since play)'),
       h('div', { class: 'mcard' }, h('div', { class: 'ml' }, 'True peak dBTP'), (e.tp = h('div', { class: 'mv' }, '—')), h('div', { class: 'tbar' }, e.tpbar)),
       h('div', { class: 'mcard' }, h('div', { class: 'ml' }, 'Stereo width / correlation'), (e.wd = h('div', { class: 'mv' }, '—')), h('div', { class: 'tbar' }, e.rbar)),
+      h('div', { class: 'mcard wide' }, h('div', { class: 'ml' }, 'Gain reduction (how hard the chain is working)'),
+        h('div', { class: 'grrow' }, h('span', null, 'Compressor'), h('div', { class: 'tbar' }, e.grcb), (e.grc = h('b', null, '0.0 dB'))),
+        h('div', { class: 'grrow' }, h('span', null, 'Limiter'), h('div', { class: 'tbar' }, e.grlb), (e.grl = h('b', null, '0.0 dB')))),
       h('button', { class: 'sm', title: 'Restart the integrated reading and the peak hold', onclick: () => { if (MP.built) MP.meter.port.postMessage('reset'); this.tpMax = -120; } }, 'Reset meters'));
   },
   views() {
@@ -2393,26 +2410,49 @@ const MUI = {
     return h('div', { class: 'mviews' }, h('div', { class: 'vwrap' }, h('div', { class: 'ml' }, 'Spectrum' + (P.master.refs.length ? ' — dashed line: reference shape' : '')), e.spec), h('div', { class: 'vwrap' }, h('div', { class: 'ml' }, 'Stereo image (mono = straight up)'), e.vec));
   },
   statsCard() { this.e.stats = h('div', { class: 'mstats' }); return this.e.stats; },
+  // what the chain actually changed, with loudness taken out (so it matches what you hear in the level-matched A/B)
+  diffBands(S) {
+    if (!S.src || !S.mas || !S.src.spec || !S.mas.spec) return null; const off = S.mas.lufs - S.src.lufs, d = S.mas.spec.map((v, i) => v - S.src.spec[i] - off), av = (a, b) => d.slice(a, b + 1).reduce((x, y) => x + y, 0) / (b - a + 1);
+    return { off, bands: [['Bass', av(3, 9)], ['Low-mids', av(10, 15)], ['Presence', av(17, 23)], ['Highs', av(25, 29)]], dPLR: (S.mas.tp - S.mas.lufs) - (S.src.tp - S.src.lufs), dLRA: (S.mas.lra || 0) - (S.src.lra || 0) };
+  },
+  diffBox(S) {
+    const r = this.diffBands(S); if (!r) return null; const sg = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1), cell = ([n, v]) => h('div', { class: 'dcell' }, h('span', null, n), h('b', { class: Math.abs(v) < 0.3 ? 'dim' : v > 0 ? 'up' : 'dn' }, sg(v) + ' dB'));
+    const small = Math.max(...r.bands.map(b => Math.abs(b[1]))) < 0.5 && Math.abs(r.dPLR) < 1;
+    return h('div', { class: 'mdiff' }, h('div', { class: 'ml' }, 'What the chain changed (B vs A, loudness taken out)'), h('div', { class: 'dgrid' }, ...r.bands.map(cell), cell(['Peaks vs average', r.dPLR]), cell(['Loudness range', r.dLRA])),
+      h('div', { class: 'dim' }, `B is ${sg(r.off)} LU ${r.off >= 0 ? 'louder' : 'quieter'} than A overall. ` + (small ? 'Very little changes in tone or dynamics at these settings — that is the chain being gentle, not broken. Raise Intensity or move Tone to hear more.' : 'These are the differences left once the volume is matched, which is what you hear in the level-matched A/B.')));
+  },
+  headroomBox(S) {
+    if (!S.src || S.src.tp <= -1.5) return null; const tp = S.src.tp, c = P.master.chain, sug = clamp(Math.ceil(tp + 2), 1, 6), cur = c.inTrim || 0;
+    return h('div', { class: 'warnb', style: 'margin:4px 8px' }, tp > -0.05 ? `Your original peaks at ${tp > 0 ? '+' : ''}${tp.toFixed(1)} dBTP — it has no headroom. ` : `Your original peaks at ${tp.toFixed(1)} dBTP — very little headroom. `,
+      `The limiter can only hold the result at ${c.lim.ceil} dBTP, so on a loud file most of the change you hear comes from the EQ and compressor, and the limiter just trims peaks. Turning the input down ${sug} dB gives them room to work (the A/B is loudness-matched, so you won't hear it get quieter). `,
+      cur <= -sug + 0.05 ? h('span', { class: 'dim' }, `Input level is already ${cur.toFixed(1)} dB.`) : h('button', { class: 'sm', onclick: () => { c.inTrim = -sug; this.renderAdv(); this.chainChanged(); this.updStats(); } }, `Set input level to −${sug} dB`));
+  },
   updStats() {
     const box = this.e.stats; if (!box) return; const S = Master.stats, m = P.master; box.textContent = '';
     const row = (n, st, extra) => h('tr', null, h('td', null, n), h('td', null, st ? fmtL(st.lufs) : '—'), h('td', null, st ? fmtL(st.tp) : '—'), h('td', null, st && st.lra != null ? st.lra.toFixed(1) : '—'), h('td', null, st ? (st.tp - st.lufs).toFixed(1) : '—'), h('td', null, st ? Math.round(st.width * 100) + '%' : '—'), h('td', { class: 'dim' }, extra || ''));
     const dl = (a, b, w) => a && b ? (a.lufs - b.lufs >= 0 ? '+' : '') + (a.lufs - b.lufs).toFixed(1) + ' LU vs ' + w : '';
     const ref = this.mref && this.mref();
-    if (S.src && S.src.tp > 0.05) box.append(h('div', { class: 'warnb', style: 'margin:4px 8px;display:inline-block' }, `Your original goes ${S.src.tp.toFixed(1)} dB over 0 dBFS — the limiter will squash it hard. Lower the track volumes, or turn Intensity down.`));
+    const hb = this.headroomBox(S); if (hb) box.append(hb);
     box.append(h('table', null, h('tr', null, h('th', null, 'Whole-song measurement'), h('th', { title: 'Integrated loudness' }, 'LUFS'), h('th', { title: 'True peak' }, 'Peak dBTP'), h('th', { title: 'Loudness range: how much the loudness moves' }, 'LRA'), h('th', { title: 'Peak-to-loudness: how far peaks stand above the average' }, 'PLR'), h('th', { title: 'Side energy as a share of the whole' }, 'Width'), h('th', null, this.status)),
       row('A  Original', S.src), row('B  Mastered', S.mas, dl(S.mas, S.src, 'original') + (ref && S.mas ? ' · ' + dl(S.mas, ref, 'reference') : '')), ...m.refs.map(r => row('Ref: ' + r.name, r, ''))));
+    const db = this.diffBox(S); if (db) box.append(db);
     this.updMatchNow();
   },
   // ---- right column
   frontPanel() {
     const m = P.master, s = m.simple, e = this.e;
     const sl = (label, key, min, max, lo, hi, fmt) => { const v = h('span', null, fmt(s[key])), r = h('input', { type: 'range', min, max, step: 1, value: s[key] });
-      r.addEventListener('input', () => { s[key] = +r.value; v.textContent = fmt(s[key]); simpleToChain(m.chain, s); this.renderAdv(); this.chainChanged(); }); r.addEventListener('dblclick', () => { r.value = key === 'tone' ? 0 : 35; r.dispatchEvent(new Event('input')); });
+      r.addEventListener('input', () => { s[key] = +r.value; v.textContent = fmt(s[key]); simpleToChain(m.chain, s); this.renderAdv(); this.chainChanged(); }); r.addEventListener('dblclick', () => { r.value = QUICK_DEF[key]; r.dispatchEvent(new Event('input')); });
       return h('div', { class: 'prm big' }, h('div', { class: 'lb' }, h('span', null, label), v), r, h('div', { class: 'lb dim' }, h('span', null, lo), h('span', null, hi))); };
-    return h('div', { class: 'mfront' }, h('h3', null, 'Quick master'),
+    return this.e.front = h('div', { class: 'mfront' }, h('h3', null, 'Quick master'),
       h('div', { class: 'dim' }, 'Two knobs that move the real controls below. Double-click a knob to reset it.'),
       sl('Intensity', 'intensity', 0, 100, 'Gentle', 'Loud & tight', v => v + '%'), sl('Tone', 'tone', -100, 100, 'Warmer', 'Brighter', v => (v > 0 ? '+' : '') + v),
-      h('div', { class: 'row', style: 'margin-top:10px;flex-wrap:wrap' }, h('button', { onclick: () => this.matchUI() }, '✨ Match my reference…'), h('button', { class: 'primary', onclick: () => Master.exportMastered() }, 'Export mastered WAV'), h('button', { onclick: () => { P.master.chain = MD.MasterDSP.defaults(); simpleToChain(P.master.chain, P.master.simple); this.renderAdv(); this.chainChanged(); } }, 'Reset')));
+      h('div', { class: 'row', style: 'margin-top:10px;flex-wrap:wrap' }, h('button', { onclick: () => this.matchUI() }, '✨ Match my reference…'), h('button', { class: 'primary', onclick: () => Master.exportMastered() }, 'Export mastered WAV'), h('button', { title: 'Back to the starting Intensity, Tone and every chain setting', onclick: () => this.resetQuick() }, 'Reset')));
+  },
+  resetQuick() {
+    const m = P.master; m.simple = { ...QUICK_DEF }; m.chain = MD.MasterDSP.defaults(); simpleToChain(m.chain, m.simple);
+    const old = this.e.front, fresh = this.frontPanel(); if (old && old.parentNode) old.replaceWith(fresh);
+    this.renderAdv(); this.chainChanged(); toast('Mastering reset to defaults');
   },
   advPanel() { this.e.adv = h('div', { class: 'madv' }); this.renderAdv(); return this.e.adv; },
   renderAdv() {
@@ -2425,7 +2465,8 @@ const MUI = {
       r.addEventListener('input', () => { o[k] = +fromPos(+r.value).toFixed(3); vt.textContent = fmt(o[k]); self.chainChanged(); });
       return h('div', { class: 'prm', title: hint || '' }, h('div', { class: 'lb' }, h('span', null, label), vt), r); };
     box.append(h('div', { class: 'fxc' }, h('div', { class: 'hd' }, h('b', { style: 'cursor:default' }, 'Whole mastering chain'), h('button', { class: 'sm' + (c.on === false ? '' : ' on'), onclick: () => { c.on = c.on === false; self.chainChanged(); self.renderAdv(); } }, c.on === false ? 'Off' : 'On')),
-      h('div', { class: 'ds' }, 'Order: low cut → EQ → bus compressor → limiter. Off = the song passes straight through.')),
+      h('div', { class: 'ds' }, 'Order: input level → low cut → EQ → bus compressor → limiter. Off = the song passes straight through.')),
+    sec('Input', null, P_('Input level', c, 'inTrim', -12, 0, 0.1, 'dB', false, 'Turns the song down BEFORE the chain. Use it when the original already touches 0 dBFS, so the EQ and compressor have room to work.')),
     sec('EQ', { o: c.eq, k: 'on' }, P_('Low cut', c.hp, 'f', 20, 120, 1, 'Hz', true, 'Removes inaudible rumble below this.'),
       P_('Low shelf', c.eq.ls, 'g', -9, 9, 0.1, 'dB'), P_('Low-mid bell', c.eq.lm, 'g', -9, 9, 0.1, 'dB', false, 'Boxiness / mud around 200–500 Hz.'), P_('Low-mid freq', c.eq.lm, 'f', 150, 1000, 1, 'Hz', true),
       P_('Presence bell', c.eq.pr, 'g', -9, 9, 0.1, 'dB', false, 'Vocal clarity and bite, 2–5 kHz.'), P_('Presence freq', c.eq.pr, 'f', 1000, 8000, 1, 'Hz', true),
@@ -2490,6 +2531,8 @@ const MUI = {
       e.tp.textContent = fmtL(b.tp) + '  (max ' + fmtL(this.tpMax) + ')'; e.tp.style.color = this.tpMax > -0.1 ? 'var(--rec)' : this.tpMax > -1 ? 'var(--warn)' : '';
       e.tpbar.style.width = clamp((b.tp + 40) / 40 * 100, 0, 100) + '%'; e.wd.textContent = Math.round(b.w * 100) + '%  /  ' + b.corr.toFixed(2); e.rbar.style.width = clamp((b.corr + 1) / 2 * 100, 0, 100) + '%';
     }
+    const g = MP.playing && MP.gr ? MP.gr : null, gc = g ? -g.gc : 0, gl = g ? -g.gl : 0; this.hc = Math.max(gc, (this.hc || 0) - 0.25); this.hl = Math.max(gl, (this.hl || 0) - 0.25);
+    if (e.grc) { e.grc.textContent = '−' + this.hc.toFixed(1) + ' dB'; e.grl.textContent = '−' + this.hl.toFixed(1) + ' dB'; e.grcb.style.width = clamp(this.hc / 12 * 100, 0, 100) + '%'; e.grlb.style.width = clamp(this.hl / 12 * 100, 0, 100) + '%'; }
     this.drawSpec(); this.drawVec();
   },
   drawSpec() {
