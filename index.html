@@ -81,6 +81,50 @@ button.primary{background:var(--ac);color:#04121a;border-color:var(--ac);font-we
 .prm input[type=range]{width:100%;accent-color:var(--ac);height:18px}.prm select,.fxc select{width:100%;background:#000;border:1px solid var(--ln);border-radius:6px;padding:5px;color:var(--tx)}
 .fxb{padding:1px 6px;font-size:10px;font-weight:700;color:var(--dim)}.fxb.on{color:#04121a;background:var(--ac);border-color:var(--ac)}
 .empt{color:var(--dim);padding:14px 4px;line-height:1.6}
+
+/* ---- mastering view ---- */
+#masterBtn.on{background:var(--ac);color:#04121a;border-color:var(--ac)}
+#mview{position:fixed;left:0;right:0;top:54px;bottom:0;z-index:20;background:var(--bg);display:flex;min-height:0}
+#mview .mcol{flex:1;min-width:0;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:12px}
+#mview .mside{width:360px;flex:0 0 360px;overflow-y:auto;padding:12px;background:var(--p1);border-left:1px solid var(--ln)}
+#mview .row{display:flex;align-items:center;gap:8px}
+#mview .sp{flex:1}
+#mview .dim{color:var(--dim);font-size:12px}
+#mview .msrc{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--p2);border:1px solid var(--ln);border-radius:8px;padding:8px 10px}
+#mview .warnb{background:#3a2a10;color:var(--warn);border-radius:10px;padding:2px 9px;font-size:12px}
+#mview .mplayer{background:var(--p2);border:1px solid var(--ln);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:9px}
+#mview .seek{flex:1;accent-color:var(--ac)}
+#mview .mtime{font:600 14px ui-monospace,Menlo,monospace;color:var(--ac);min-width:170px;text-align:right}
+#mview .ab{display:flex;flex-wrap:wrap;gap:6px;flex:1}
+#mview .abb{padding:6px 12px}#mview .abb.on{background:var(--ac);color:#04121a;border-color:var(--ac);font-weight:600}
+#mview .refw{display:inline-flex;gap:2px}#mview .refw .x{padding:4px 6px;font-size:11px;color:var(--dim)}
+#mview .chk{display:flex;align-items:center;gap:4px;white-space:nowrap;cursor:pointer}
+#mview .mmeters{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
+#mview .mcard{background:var(--p2);border:1px solid var(--ln);border-radius:8px;padding:8px 12px;min-width:140px}
+#mview .ml{font-size:11px;color:var(--dim);margin-bottom:2px}
+#mview .mv{font:600 22px ui-monospace,Menlo,monospace}
+#mview .tbar{height:5px;background:var(--p3);border-radius:3px;overflow:hidden;margin-top:5px}#mview .tbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ok) 70%,var(--warn) 90%,var(--rec))}
+#mview .mviews{display:flex;gap:12px;flex-wrap:wrap}
+#mview .vwrap{background:var(--p2);border:1px solid var(--ln);border-radius:8px;padding:8px}
+#mview .vwrap:first-child{flex:1 1 380px;min-width:0}#mview canvas.spec{width:100%;height:190px;display:block;background:#0b0b0e;border-radius:4px}
+#mview canvas.vec{width:190px;height:190px;display:block;border-radius:4px}
+#mview .mstats table,#mview .mtab{border-collapse:collapse;width:100%}
+#mview .mstats{background:var(--p2);border:1px solid var(--ln);border-radius:8px;padding:6px 10px}
+#mview .mstats th{font-size:11px;color:var(--dim);text-align:left;font-weight:500;padding:4px 8px}
+#mview .mstats td{padding:4px 8px;border-top:1px solid var(--ln);font-variant-numeric:tabular-nums}
+#mview .mfront{background:var(--p2);border:1px solid var(--ln);border-radius:8px;padding:12px;margin-bottom:10px}
+#mview .mfront h3{margin:0 0 4px}
+#mview .prm.big{margin:12px 0}#mview .prm.big input{height:24px}
+#mview .mempty{margin:auto;max-width:560px;text-align:center;display:flex;flex-direction:column;gap:16px;padding:20px}
+#mview .mdrop{border:2px dashed var(--ln);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:8px;align-items:center}
+#mview button.big{padding:12px 20px;font-size:15px}
+#mview .fxc .hd b{cursor:default}
+#mview button.primary,.modal button.primary{background:var(--ac);color:#04121a;border-color:var(--ac);font-weight:600}
+.mtab td{padding:5px 8px;border-bottom:1px solid var(--ln)}.mtab td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.mute-note{color:var(--dim);font-size:12px}
+
+#mview .mmatch .mrow{border-top:1px solid var(--ln);padding:8px 0}#mview .mmatch .mt{margin:3px 0;font-size:13px}#mview .mmatch .now{font-size:11.5px;margin-bottom:2px}#mview .mmatch select{flex:1;background:#000;border:1px solid var(--ln);border-radius:6px;padding:5px;color:var(--tx)}
+textarea.mutes{width:100%;box-sizing:border-box;background:#000;border:1px solid var(--ln);border-radius:6px;padding:8px;color:var(--tx);font:13px ui-monospace,Menlo,monospace;resize:vertical;-webkit-user-select:text;user-select:text}
 </style></head>
 <body>
 <div id="app">
@@ -91,7 +135,7 @@ button.primary{background:var(--ac);color:#04121a;border-color:var(--ac);font-we
   <div class="grp"><button id="toolClip" title="Clip tool (V): move, trim, fade clips">Clip</button><button id="toolRange" title="Range tool (R): highlight a section">Range</button><button id="snap" title="Snap to clip edges, markers, playhead">Snap</button></div>
   <div class="grp"><button id="zout" title="Zoom out (−)">−</button><button id="zfit" title="Fit project">Fit</button><button id="zin" title="Zoom in (+)">+</button></div>
   <div class="grp"><button id="undo" title="Undo (Ctrl+Z)">↶</button><button id="redo" title="Redo (Ctrl+Shift+Z)">↷</button></div>
-  <div class="grp"><button id="fxBtn" title="Effects library and track effect chain">Effects</button><button id="add" title="Add empty track">+ Track</button><button id="import" title="Import audio (or drop files anywhere)">Import</button><button id="export" class="primary" title="Export mix as WAV, 48 kHz / 24-bit">Export mix</button></div>
+  <div class="grp"><button id="fxBtn" title="Effects library and track effect chain">Effects</button><button id="masterBtn" title="Mastering: master a finished song or this project's mix">Master</button><button id="add" title="Add empty track">+ Track</button><button id="import" title="Import audio (or drop files anywhere)">Import</button><button id="export" class="primary" title="Export mix as WAV, 48 kHz / 24-bit">Export mix</button></div>
   <div class="grp" style="margin-left:auto"><div id="meter" title="Master level"><div id="meterFill"></div></div></div>
   <div class="grp"><div id="mem"><span id="memTxt">Memory</span><div id="memBar"><div id="memFill"></div></div></div></div>
   <div class="grp"><span id="save">Saved</span></div>
@@ -105,6 +149,7 @@ button.primary{background:var(--ac);color:#04121a;border-color:var(--ac);font-we
   <aside id="side"></aside>
  </div>
 </div>
+<div id="mview" style="display:none"></div>
 <div id="toast"></div><div id="drop">Drop audio to import</div>
 <script>
 'use strict';
@@ -394,10 +439,10 @@ const Cache = { // decoded chunk cache (AudioBuffers), bounded by bytes
 // Track graph — used for BOTH live playback and offline export so they sound identical.
 //   in -> [effects chain] -> vol -> pan -> out -> dest
 function buildTrackGraph(ctx, tr, dest) {
-  const inn = ctx.createGain(), vol = ctx.createGain(), pan = ctx.createStereoPanner(), out = ctx.createGain();
-  inn.connect(vol); vol.connect(pan); pan.connect(out); out.connect(dest);
+  const inn = ctx.createGain(), vol = ctx.createGain(), pan = ctx.createStereoPanner(), mg = ctx.createGain(), out = ctx.createGain();
+  inn.connect(vol); vol.connect(pan); pan.connect(mg); mg.connect(out); out.connect(dest); // mg = muted-section automation
   vol.gain.value = volToGain(tr.vol); pan.pan.value = tr.pan;
-  return { inn, vol, pan, out };
+  return { inn, vol, pan, mg, out };
 }
 // fade/gain automation for one clip; p0 = timeline sample where we start; tAt maps sample -> context time
 function applyClipAuto(g, c, p0, tAt) {
@@ -453,7 +498,7 @@ const Engine = {
   },
   // ---- transport
   async play() {
-    await this.ctx.resume();
+    await this.ctx.resume(); if (typeof MP !== 'undefined') MP.pause();
     if (this.playing) return;
     this.begin(P.view.ph);
   },
@@ -461,13 +506,13 @@ const Engine = {
     this.stopSources();
     this.startS = Math.max(0, Math.round(s));
     this.t0 = Math.ceil((this.ctx.currentTime + 0.08) * SR) / SR;
-    this.playing = true; this.setFxActive(true);
+    this.playing = true; this.setFxActive(true); this.scheduleMutes(this.startS);
     clearInterval(this.timer); this.timer = setInterval(() => this.tick(), 90); this.tick();
   },
   pause() {
     if (!this.playing) return;
     P.view.ph = Math.round(this.pos());
-    this.stopSources(); this.playing = false; this.setFxActive(false); clearInterval(this.timer); Save.mark();
+    this.stopSources(); this.playing = false; this.setFxActive(false); this.clearMutes(); clearInterval(this.timer); Save.mark();
   },
   seek(s) { s = Math.max(0, Math.round(s)); if (this.playing) this.begin(s); else P.view.ph = s; },
   resched() { if (this.playing) { const p = this.schedPos(); this.begin(p); } },
@@ -683,7 +728,7 @@ class Crackle extends AudioWorkletProcessor{ // static & hiss whose level FOLLOW
 registerProcessor('fx-crackle',Crackle);
 class Match extends AudioWorkletProcessor{
  static get parameterDescriptors(){return[{name:'on',defaultValue:1,minValue:0,maxValue:1,automationRate:'k-rate'}]}
- constructor(o){super();const op=(o&&o.processorOptions)||{};this.tau=op.tau||0.05;this.off=Math.pow(10,(op.offDb==null?0.3:op.offDb)/20);this.mi=0;this.mo=0;this.g=1;this.a=1-Math.exp(-1/(this.tau*sampleRate));this.k=1/(1+6.2831853*90/sampleRate);
+ constructor(o){super();const op=(o&&o.processorOptions)||{};this.tau=op.tau||0.035;this.off=Math.pow(10,(op.offDb==null?0.3:op.offDb)/20);this.mi=0;this.mo=0;this.g=1;this.pk=0;this.fi=0;this.fw=0;this.fa=1-Math.exp(-1/(0.025*sampleRate));this.pd=Math.exp(-1/(8*sampleRate));this.a=1-Math.exp(-1/(this.tau*sampleRate));this.k=1/(1+6.2831853*90/sampleRate);
   this.s=new Float64Array(2*2*12)} // per signal(2) per channel(2): shelf x1,x2,y1,y2, hp stage states
  process(inp,out,par){const r=inp[0],w=inp[1],o=out[0];if(!w||!w.length){for(let c=0;c<o.length;c++)o[c].fill(0);return true}
   const N=o[0].length,nc=Math.min(2,o.length),on=par.on[0]>0.5,k=this.k,s=this.s;
@@ -694,9 +739,11 @@ class Match extends AudioWorkletProcessor{
     const y=B0*x+B1*s[j]+B2*s[j+1]-A1*s[j+2]-A2*s[j+3];s[j+1]=s[j];s[j]=x;s[j+3]=s[j+2];s[j+2]=y;
     const h2=y-2*s[j+4]+s[j+5]-C1*s[j+6]-C2*s[j+7];s[j+5]=s[j+4];s[j+4]=y;s[j+7]=s[j+6];s[j+6]=h2;
     if(q)b+=h2*h2;else a+=h2*h2}}
-   this.mi+=this.a*(a/nc-this.mi);this.mo+=this.a*(b/nc-this.mo)}
-  let tg=1;if(on){tg=(this.mi>1e-9&&this.mo>1e-12)?Math.min(Math.max(Math.sqrt(this.mi/this.mo)*this.off,0.03),12):this.g}
-  const g0=this.g,g1=g0+(tg-g0)*0.25;this.g=g1;
+   this.mi+=this.a*(a/nc-this.mi);this.mo+=this.a*(b/nc-this.mo);this.pk=this.mi>this.pk?this.mi:this.pk*this.pd;this.fi+=this.fa*(a/nc-this.fi);this.fw+=this.fa*(b/nc-this.fw)}
+  let tg=1;if(on){const gate=Math.max(1e-8,this.pk*0.003); // hold the gain while the input is far below recent program level: tails (reverb/delay) ring out naturally and nothing ducks or pumps in the gaps
+   tg=(this.mi>gate&&this.mo>1e-12)?Math.min(Math.max(Math.sqrt(this.mi/this.mo)*this.off,0.01),12):this.g;
+   if(this.fi>gate&&this.fw>1e-12){const cap=Math.sqrt(this.fi*1.6/this.fw);if(cap<tg)tg=Math.max(cap,0.01)}} // momentary ceiling: never more than ~2 dB over the dry level, even for a moment
+  const g0=this.g,g1=g0+(tg-g0)*(tg<g0?0.6:0.35);this.g=g1;
   for(let c=0;c<o.length;c++){const y=w[c]||w[0],q=o[c];for(let n=0;n<N;n++){let v=y[n]*(g0+(g1-g0)*n/N),s2=v<0?-1:1,m=v*s2;if(m>0.95)m=0.95+0.05*Math.tanh((m-0.95)/0.05);q[n]=s2*m}}
   return true}}
 registerProcessor('fx-match',Match);
@@ -943,11 +990,11 @@ function findClip(id) { for (const t of P.tracks) { const c = t.clips.find(c => 
 // undo/redo (project structure only; audio assets are immutable)
 const H = {
   undo: [], redo: [],
-  snap() { return JSON.stringify({ tracks: P.tracks, markers: P.markers }); },
+  snap() { return JSON.stringify({ tracks: P.tracks, markers: P.markers, mutes: P.mutes || [] }); },
   push() { if (this.undo.length > 100) this.undo.shift(); this.undo.push(this.snap()); this.redo.length = 0; syncUndoBtns(); },
   doUndo() { if (!this.undo.length || Engine.rec) return; this.redo.push(this.snap()); this.restore(this.undo.pop()); },
   doRedo() { if (!this.redo.length || Engine.rec) return; this.undo.push(this.snap()); this.restore(this.redo.pop()); },
-  restore(s) { const o = JSON.parse(s); P.tracks = o.tracks; P.markers = o.markers; cleanSel(); afterEdit({ structure: true, headers: true }); syncUndoBtns(); },
+  restore(s) { const o = JSON.parse(s); P.tracks = o.tracks; P.markers = o.markers; P.mutes = o.mutes || []; cleanSel(); afterEdit({ structure: true, headers: true }); syncUndoBtns(); },
   clear() { this.undo.length = 0; this.redo.length = 0; syncUndoBtns(); }
 };
 function cleanSel() {
@@ -1147,6 +1194,71 @@ Object.assign(Ops, {
   }
 });
 
+// ---- label / timestamp based muting: a list of time sections that are silenced (all tracks, or named tracks)
+// Stored as P.mutes = [{ id, a, b, label, tids|null }] (samples). Applied as click-free gain automation after the
+// track's effects, identically for live playback, bounce and every export.
+function muteSpans(tid) { // merged, sorted [a,b] spans that apply to this track
+  const rs = (P.mutes || []).filter(m => m.b > m.a && (!m.tids || m.tids.includes(tid))).map(m => [m.a, m.b]).sort((x, y) => x[0] - y[0]), out = [];
+  for (const r of rs) { const l = out[out.length - 1]; if (l && r[0] <= l[1]) l[1] = Math.max(l[1], r[1]); else out.push([r[0], r[1]]); }
+  return out;
+}
+function muteAuto(gp, tid, p0, tAt) {
+  const RMP = Math.round(0.005 * SR), spans = muteSpans(tid); gp.cancelScheduledValues(0);
+  const inside = spans.some(s => p0 >= s[0] && p0 < s[1]); gp.setValueAtTime(inside ? 0 : 1, tAt(p0));
+  for (const [a, b] of spans) {
+    if (b <= p0) continue;
+    if (a > p0) { gp.setValueAtTime(1, tAt(Math.max(p0, a - RMP))); gp.linearRampToValueAtTime(0, tAt(a)); }
+    gp.setValueAtTime(0, tAt(Math.max(a, p0))); gp.setValueAtTime(0, tAt(b)); gp.linearRampToValueAtTime(1, tAt(b + RMP));
+  }
+}
+Engine.scheduleMutes = function (s) { for (const t of P.tracks) { const nd = this.nodes.get(t.id); if (nd && nd.mg) muteAuto(nd.mg.gain, t.id, s, p => this.tAt(p)); } };
+Engine.clearMutes = function () { const now = this.ctx.currentTime; for (const nd of this.nodes.values()) if (nd.mg) { nd.mg.gain.cancelScheduledValues(0); nd.mg.gain.setValueAtTime(1, now); } };
+
+// ---- text list: "mm:ss.ss - mm:ss.ss  label  @Track A, Track B"
+function mutesToText() {
+  return (P.mutes || []).slice().sort((a, b) => a.a - b.a).map(m => `${fmtTime(m.a)} - ${fmtTime(m.b)}${m.label ? '  ' + m.label : ''}` + (m.tids ? '  @' + m.tids.map(id => (trackOf(id) || {}).name).filter(Boolean).join(', ') : '')).join('\n');
+}
+function parseMutes(text) {
+  const out = [], errs = [];
+  text.split('\n').forEach((raw, i) => {
+    const line = raw.trim(); if (!line) return;
+    const mm = line.match(/^([\d:.]+)\s*(?:-|–|—|to)\s*([\d:.]+)\s*(.*)$/i); if (!mm) { errs.push(`Line ${i + 1}: expected  00:12.50 - 00:15.00  label`); return; }
+    const a = parseTime(mm[1]), b = parseTime(mm[2]); if (a == null || b == null) { errs.push(`Line ${i + 1}: can't read the times`); return; } if (b <= a) { errs.push(`Line ${i + 1}: the end must be after the start`); return; }
+    let rest = mm[3].trim(), tids = null; const at = rest.indexOf('@');
+    if (at >= 0) {
+      const names = rest.slice(at + 1).split(',').map(s => s.trim().toLowerCase()).filter(Boolean); rest = rest.slice(0, at).trim();
+      tids = []; for (const n of names) { const t = P.tracks.find(t => t.name.toLowerCase() === n); if (t) tids.push(t.id); else errs.push(`Line ${i + 1}: no track named “${n}”`); }
+      if (!tids.length) tids = null;
+    }
+    out.push({ id: uid('u'), a, b, label: rest, tids });
+  });
+  return { out, errs };
+}
+Ops.setMutes = function (list) { H.push(); P.mutes = list; afterEdit({ structure: true }); };
+Ops.muteRange = function () {
+  const R = UI.range; if (!R) { toast('Highlight a section with the Range tool first'); return; }
+  const all = R.tids.length >= P.tracks.length; H.push(); P.mutes.push({ id: uid('u'), a: Math.round(R.a), b: Math.round(R.b), label: '', tids: all ? null : R.tids.slice() }); afterEdit({ structure: true }); toast('Section muted — edit the list under Project ▸ Mute list…');
+};
+function muteListUI() {
+  const ta = h('textarea', { class: 'mutes', rows: 9, spellcheck: false, placeholder: '00:12.50 - 00:15.00  vocal slip\n01:02.00 - 01:04.25  drums only  @Drums, Bass' }); ta.value = mutesToText(); ta.addEventListener('keydown', e => e.stopPropagation());
+  const err = h('div', { class: 'mute-note', style: 'color:var(--rec);margin-top:6px' });
+  const box = h('div', { style: 'min-width:min(520px,80vw)' }, h('div', { class: 'mute-note', style: 'margin-bottom:6px' }, 'One section per line: start - end, then an optional label. Add @TrackName, Other Track to mute only those tracks (otherwise every track is muted). Times are mm:ss.ss.'), ta, err);
+  modal('Mute list', box, [{ label: 'Cancel' }, { label: 'Save', primary: true, keep: true, fn: api => { const { out, errs } = parseMutes(ta.value); if (errs.length) { err.textContent = errs.join('\n'); return; } Ops.setMutes(out); api.close(); toast(out.length ? out.length + ' muted section' + (out.length > 1 ? 's' : '') : 'Mute list cleared'); } }]);
+  setTimeout(() => ta.focus(), 20);
+}
+let mutePat = null;
+function drawMutes(g, vs) {
+  if (!(P.mutes || []).length) return;
+  if (!mutePat) { const c = document.createElement('canvas'); c.width = c.height = 8; const x = c.getContext('2d'); x.fillStyle = 'rgba(255,77,94,.16)'; x.fillRect(0, 0, 8, 8); x.strokeStyle = 'rgba(255,77,94,.55)'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(-1, 9); x.lineTo(9, -1); x.stroke(); mutePat = g.createPattern(c, 'repeat'); }
+  g.font = '10px system-ui';
+  for (let i = 0; i < P.tracks.length; i++) {
+    const t = P.tracks[i], y = i * TH - vs; if (y + TH < 0 || y > HH) continue;
+    for (const m of P.mutes) { if (m.tids && !m.tids.includes(t.id)) continue; const x0 = s2x(m.a), x1 = s2x(m.b); if (x1 < 0 || x0 > W) continue;
+      g.fillStyle = mutePat; g.fillRect(x0, y, x1 - x0, TH - 1); g.fillStyle = 'rgba(255,77,94,.9)'; g.fillRect(x0, y, 1, TH - 1); g.fillRect(x1 - 1, y, 1, TH - 1);
+      if (x1 - x0 > 46) { g.fillStyle = '#ffb3bb'; g.fillText('MUTED' + (m.label ? ' · ' + m.label : ''), Math.max(x0, 0) + 5, y + 12, x1 - Math.max(x0, 0) - 8); } }
+  }
+}
+
 // ---- WAV export (48 kHz / 24-bit, rendered one track at a time) ------------------------
 async function clipBuffer(c) { // one gap-free AudioBuffer for a clip's section
   const buf = new AudioBuffer({ length: Math.max(1, c.len), numberOfChannels: 2, sampleRate: SR });
@@ -1162,7 +1274,7 @@ async function clipBuffer(c) { // one gap-free AudioBuffer for a clip's section
 }
 async function renderTrack(tr, length, withFx = true) {
   const oc = new OfflineAudioContext(2, Math.max(1, length), SR);
-  const g = buildTrackGraph(oc, tr, oc.destination);
+  const g = buildTrackGraph(oc, tr, oc.destination); muteAuto(g.mg.gain, tr.id, 0, p => p / SR);
   const fxList = withFx ? (tr.fx || []).filter(f => f.on !== false) : [];
   if (fxList.length) { await ensureFxWorklet(oc); wireChain(g, fxList.map(f => Effects.create(oc, f))); } // same chain as live
   for (const c of tr.clips) {
@@ -1232,17 +1344,13 @@ async function exportTrackWav(tr, withFx) {
   finally { pr.close(); }
 }
 
-async function exportMix() {
-  const body = projectEnd(); if (!body) { toast('Nothing to export'); return; }
-  const solo = P.tracks.some(t => t.solo), tracks = P.tracks.filter(t => isAudible(t, solo) && t.clips.length);
-  const len = body + Math.round(Math.max(0, ...tracks.map(chainTail)) * SR); // let reverb/delay tails ring out
-  if (!tracks.length) { toast('No audible tracks'); return; }
-  let sink; try { sink = await openSink(safeName(P.name) + ' mix.wav'); } catch (e) { return; }
-  const pr = progress('Exporting mix'), tmp = uid('x');
+// render every audible track one at a time into temp chunks on disk; chunkAt(k) sums them for chunk k
+async function mixChunks(tracks, len, onProg) {
+  const tmp = uid('x'), n = Math.ceil(len / CHUNK);
   try {
-    for (let i = 0; i < tracks.length; i++) { // one track at a time -> temp chunks on disk
-      pr.set(i / (tracks.length + 1) * 0.8, `Rendering ${tracks[i].name} (${i + 1}/${tracks.length})`);
-      const buf = await renderTrack(tracks[i], len), L = buf.getChannelData(0), R = buf.getChannelData(1), n = Math.ceil(len / CHUNK);
+    for (let i = 0; i < tracks.length; i++) {
+      if (onProg) onProg(i / tracks.length, `Rendering ${tracks[i].name} (${i + 1}/${tracks.length})`);
+      const buf = await renderTrack(tracks[i], len), L = buf.getChannelData(0), R = buf.getChannelData(1);
       for (let k = 0; k < n; k++) {
         const a = k * CHUNK, m = Math.min(CHUNK, len - a), f = new Float32Array(m * 2);
         for (let j = 0; j < m; j++) { f[2 * j] = L[a + j]; f[2 * j + 1] = R[a + j]; }
@@ -1250,7 +1358,9 @@ async function exportMix() {
       }
       await sleep(0);
     }
-    const st = await writeWav(sink, len, async k => {
+  } catch (e) { Store.remove('tmp/' + tmp); throw e; }
+  return {
+    async chunkAt(k) {
       const m = Math.min(CHUNK, len - k * CHUNK), sum = new Float32Array(m * 2);
       for (let i = 0; i < tracks.length; i++) {
         const f = await Store.readFile(`tmp/${tmp}/${i}/c${k}.f32`); if (!f) continue;
@@ -1258,10 +1368,35 @@ async function exportMix() {
         for (let j = 0; j < sum.length; j++) sum[j] += a[j];
       }
       return sum;
-    }, p => pr.set(0.8 + 0.2 * p, 'Writing…'));
-    await sink.close(); toast(doneMsg(st), 4500);
+    },
+    cleanup() { Store.remove('tmp/' + tmp); }
+  };
+}
+
+async function exportMix(mastered) {
+  const body = projectEnd(); if (!body) { toast('Nothing to export'); return; }
+  const solo = P.tracks.some(t => t.solo), tracks = P.tracks.filter(t => isAudible(t, solo) && t.clips.length);
+  const len = body + Math.round(Math.max(0, ...tracks.map(chainTail)) * SR); // let reverb/delay tails ring out
+  if (!tracks.length) { toast('No audible tracks'); return; }
+  let sink; try { sink = await openSink(safeName(P.name) + (mastered ? ' mix mastered.wav' : ' mix.wav')); } catch (e) { return; }
+  const pr = progress(mastered ? 'Exporting mastered mix' : 'Exporting mix'); let mx;
+  try {
+    mx = await mixChunks(tracks, len, (f, t) => pr.set(f * 0.7, t));
+    if (mastered) {
+      const r = await Master.writeMastered(sink, len, k => mx.chunkAt(k), P.master.chain, p => pr.set(0.7 + 0.3 * p, 'Mastering and writing…'));
+      await sink.close(); toast(masteredMsg(r), 6000);
+    } else {
+      const st = await writeWav(sink, len, k => mx.chunkAt(k), p => pr.set(0.7 + 0.3 * p, 'Writing…'));
+      await sink.close(); toast(doneMsg(st), 4500);
+    }
   } catch (e) { console.error(e); sink.abort(); toast('Export failed: ' + e.message, 5000); }
-  finally { pr.close(); Store.remove('tmp/' + tmp); }
+  finally { pr.close(); if (mx) mx.cleanup(); }
+}
+// top-bar Export: offer the mastered version when a mastering chain is switched on
+function exportMixUI(e) {
+  if (!P.master.used || !P.master.chain.on) return exportMix(false);
+  const r = e.currentTarget.getBoundingClientRect();
+  popMenu(r.left, r.bottom + 4, [{ label: 'Export mix with mastering (WAV)', fn: () => exportMix(true) }, { label: 'Export mix without mastering (WAV)', fn: () => exportMix(false) }]);
 }
 
 // ---- timeline UI (canvas) ------------------------------------------------------------
@@ -1363,6 +1498,7 @@ function renderBase() {
     g.fillStyle = '#2a2a33'; g.fillRect(0, y + TH - 1, W, 1);
     for (const c of t.clips) drawClip(g, c, t, y);
   }
+  drawMutes(g, vs);
   g.fillStyle = 'rgba(255,183,77,.35)';
   for (const m of P.markers) g.fillRect(Math.round(s2x(m.t)), 0, 1, HH);
 }
@@ -1388,6 +1524,7 @@ function renderOver() {
 function renderRuler() {
   const g = gR; g.setTransform(dpr, 0, 0, dpr, 0, 0);
   g.fillStyle = '#141418'; g.fillRect(0, 0, W, RH);
+  g.fillStyle = 'rgba(255,77,94,.55)'; for (const m of P.mutes || []) g.fillRect(s2x(m.a), RH - 5, Math.max(1, s2x(m.b) - s2x(m.a)), 4);
   const R = UI.range; if (R) { g.fillStyle = 'rgba(76,194,255,.25)'; g.fillRect(s2x(R.a), 0, s2x(R.b) - s2x(R.a), RH); }
   g.font = '10px ui-monospace,Menlo,monospace'; g.textBaseline = 'top';
   for (const k of calcTicks()) {
@@ -1651,6 +1788,8 @@ function canvasMenu(e) {
     { label: 'Paste', hint: 'Ctrl+V', disabled: !UI.clipboard, fn: () => Ops.paste() },
     { label: 'Add marker here', fn: () => Ops.addMarker(at) },
     UI.range ? { label: 'Delete highlighted section', hint: 'Del', fn: () => Ops.deleteRange() } : null,
+    UI.range ? { label: 'Mute highlighted section', fn: () => Ops.muteRange() } : null,
+    { label: 'Mute list…', fn: muteListUI },
     ht.t ? { label: 'Import audio here…', fn: () => { P.view.ph = at; pickFiles(f => Ops.importInto(f, ht.t)); } } : null,
   ]);
 }
@@ -1786,12 +1925,598 @@ const FXUI = {
   }
 };
 
+// ---- mastering DSP: ONE source text, used (a) inside an AudioWorklet for live playback and
+// (b) inside a Web Worker for analysis + export, so what you hear is exactly what gets exported.
+const MDSP_SRC = String.raw`
+const TWOPI=6.283185307179586;
+function bqCoef(type,f,g,q,sr){
+ const w=TWOPI*Math.min(f,sr*0.45)/sr,c=Math.cos(w),s=Math.sin(w);let b0,b1,b2,a0,a1,a2;const A=Math.pow(10,g/40);
+ if(type==='hp'){const al=s/(2*q);b0=(1+c)/2;b1=-(1+c);b2=(1+c)/2;a0=1+al;a1=-2*c;a2=1-al}
+ else if(type==='pk'){const al=s/(2*q);b0=1+al*A;b1=-2*c;b2=1-al*A;a0=1+al/A;a1=-2*c;a2=1-al/A}
+ else if(type==='ls'){const al=s/2*Math.SQRT2,k=2*Math.sqrt(A)*al;b0=A*((A+1)-(A-1)*c+k);b1=2*A*((A-1)-(A+1)*c);b2=A*((A+1)-(A-1)*c-k);a0=(A+1)+(A-1)*c+k;a1=-2*((A-1)+(A+1)*c);a2=(A+1)+(A-1)*c-k}
+ else{const al=s/2*Math.SQRT2,k=2*Math.sqrt(A)*al;b0=A*((A+1)+(A-1)*c+k);b1=-2*A*((A-1)+(A+1)*c);b2=A*((A+1)+(A-1)*c-k);a0=(A+1)-(A-1)*c+k;a1=2*((A-1)-(A+1)*c);a2=(A+1)-(A-1)*c-k}
+ return[b0/a0,b1/a0,b2/a0,a1/a0,a2/a0]}
+// 4x true-peak interpolation taps (12 per phase, windowed sinc) for the points 1/4, 2/4, 3/4 between samples
+const TPK=[0.25,0.5,0.75].map(function(fr){const t=[];let s=0;for(let j=0;j<12;j++){const a=(j-6)+fr,sc=Math.abs(a)<1e-9?1:Math.sin(Math.PI*a)/(Math.PI*a),w=0.5+0.5*Math.cos(Math.PI*a/6.5);t.push(sc*w);s+=sc*w}return t.map(function(v){return v/s})});
+// peak around the sample that is 6 samples old in ring h (length 16), newest at index i
+function tp4(h,i){let p=Math.abs(h[(i-6)&15]);for(let k=0;k<3;k++){const t=TPK[k];let y=0;for(let j=0;j<12;j++)y+=h[(i-j)&15]*t[j];if(y<0)y=-y;if(y>p)p=y}return p}
+
+class MasterDSP{
+ constructor(sr){this.sr=sr;this.LA=Math.ceil(0.005*sr);this.D=this.LA+6;this.latency=this.D;
+  this.eqz=new Float64Array(5*2*2);this.cf=[[1,0,0,0,0],[1,0,0,0,0],[1,0,0,0,0],[1,0,0,0,0],[1,0,0,0,0]];this.eqOn=[0,0,0,0,0];
+  this.scx=[0,0];this.scy=[0,0];this.cur=0;
+  this.dl=[new Float32Array(this.D),new Float32Array(this.D)];this.dw=0;this.th=[new Float32Array(16),new Float32Array(16)];this.ti=0;
+  const C=this.LA+2;this.dqv=new Float64Array(C);this.dqi=new Float64Array(C);this.dh=0;this.dt=0;this.n=0;this.C=C;
+  this.mb=new Float64Array(this.LA).fill(1);this.mi=0;this.msum=this.LA;this.r=1;
+  this.tL=new Float32Array(128);this.tR=new Float32Array(128);this.p=null;this.setParams(MasterDSP.defaults())}
+ static defaults(){return{on:true,hp:{on:true,f:25},eq:{on:true,ls:{f:120,g:0},lm:{f:350,g:0,q:0.9},pr:{f:3200,g:0,q:0.8},hs:{f:9000,g:0}},
+  width:1,comp:{on:true,thr:-8,ratio:1.6,att:30,rel:180,knee:8,mk:0},lim:{on:true,drive:0,ceil:-1,rel:100},trim:0}}
+ setParams(p){this.p=p;const sr=this.sr,e=p.eq||{};
+  const set=(i,on,c)=>{this.eqOn[i]=on?1:0;if(on)this.cf[i]=c};
+  set(0,p.on&&p.hp&&p.hp.on,bqCoef('hp',p.hp?p.hp.f:25,0,0.707,sr));
+  const eo=p.on&&e.on;
+  set(1,eo&&e.ls&&Math.abs(e.ls.g)>0.01,bqCoef('ls',e.ls?e.ls.f:120,e.ls?e.ls.g:0,1,sr));
+  set(2,eo&&e.lm&&Math.abs(e.lm.g)>0.01,bqCoef('pk',e.lm?e.lm.f:350,e.lm?e.lm.g:0,e.lm?e.lm.q:0.9,sr));
+  set(3,eo&&e.pr&&Math.abs(e.pr.g)>0.01,bqCoef('pk',e.pr?e.pr.f:3200,e.pr?e.pr.g:0,e.pr?e.pr.q:0.8,sr));
+  set(4,eo&&e.hs&&Math.abs(e.hs.g)>0.01,bqCoef('hs',e.hs?e.hs.f:9000,e.hs?e.hs.g:0,1,sr));
+  const c=p.comp||{};this.cOn=!!(p.on&&c.on);this.cThr=c.thr==null?-8:c.thr;this.cRat=Math.max(1,c.ratio||1);this.cKnee=Math.max(0.1,c.knee==null?8:c.knee);this.cMk=c.mk||0;
+  this.cA=1-Math.exp(-1/(Math.max(0.1,c.att||30)/1000*sr));this.cR=1-Math.exp(-1/(Math.max(1,c.rel||180)/1000*sr));this.hpa=1/(1+TWOPI*90/sr);
+  const l=p.lim||{};this.lOn=!!(p.on&&l.on);this.drive=Math.pow(10,(this.lOn?(l.drive||0):0)/20);this.ceil=Math.pow(10,(l.ceil==null?-1:l.ceil)/20);this.ceilDet=this.ceil*0.9886;this.relC=1-Math.exp(-1/(Math.max(5,l.rel||100)/1000*sr));this.wid=p.on&&p.width!=null?p.width:1;
+  this.trim=Math.pow(10,Math.min(0,p.on?(p.trim||0):0)/20)}
+ process(inL,inR,oL,oR,n){
+  if(this.tL.length<n){this.tL=new Float32Array(n);this.tR=new Float32Array(n)}
+  const A=this.tL,B=this.tR;A.set(inL.subarray?inL.subarray(0,n):inL);B.set(inR.subarray?inR.subarray(0,n):inR);
+  // 1) low cut + EQ (transposed direct form II)
+  for(let s=0;s<5;s++){if(!this.eqOn[s])continue;const c=this.cf[s],b0=c[0],b1=c[1],b2=c[2],a1=c[3],a2=c[4];
+   for(let ch=0;ch<2;ch++){const x=ch?B:A,o=(s*2+ch)*2;let z1=this.eqz[o],z2=this.eqz[o+1];
+    for(let i=0;i<n;i++){const v=x[i],y=b0*v+z1;z1=b1*v-a1*y+z2;z2=b2*v-a2*y;x[i]=y}
+    this.eqz[o]=z1;this.eqz[o+1]=z2}}
+  if(this.wid!==1){const w=this.wid;for(let i=0;i<n;i++){const m=(A[i]+B[i])*0.5,sd=(A[i]-B[i])*0.5*w;A[i]=m+sd;B[i]=m-sd}}
+  // 2) bus compressor (stereo-linked peak detector, soft knee, smoothed in dB, 90 Hz side-chain high-pass)
+  if(this.cOn){const thr=this.cThr,rat=this.cRat,kn=this.cKnee,k1=1/rat-1,mk=this.cMk,ca=this.cA,cr=this.cR,ha=this.hpa;let cur=this.cur,x0=this.scx[0],x1=this.scx[1],y0=this.scy[0],y1=this.scy[1];
+   for(let i=0;i<n;i++){const l=A[i],r=B[i];y0=ha*(y0+l-x0);x0=l;y1=ha*(y1+r-x1);x1=r;
+    let pk=Math.max(y0<0?-y0:y0,y1<0?-y1:y1);if(pk<1e-6)pk=1e-6;const lv=20*Math.log10(pk),ov=lv-thr;let gr;
+    if(2*ov<-kn)gr=0;else if(2*Math.abs(ov)<=kn){const t=ov+kn/2;gr=k1*t*t/(2*kn)}else gr=k1*ov;
+    cur+=(gr<cur?ca:cr)*(gr-cur);const g=Math.pow(10,(cur+mk)/20);A[i]=l*g;B[i]=r*g}
+   this.cur=cur;this.scx[0]=x0;this.scx[1]=x1;this.scy[0]=y0;this.scy[1]=y1}
+  // 3) look-ahead true-peak limiter (always delays by D samples so bypass stays time-aligned)
+  const D=this.D,LA=this.LA,C=this.C,dq=this.dqv,di=this.dqi,mb=this.mb,drv=this.drive,ceil=this.ceil,cd=this.ceilDet,lOn=this.lOn,relC=this.relC,trim=this.trim;
+  let w=this.dw,ti=this.ti,dh=this.dh,dt=this.dt,nn=this.n,mi=this.mi,msum=this.msum,r=this.r;const d0=this.dl[0],d1=this.dl[1],h0=this.th[0],h1=this.th[1];
+  for(let i=0;i<n;i++){let xl=A[i]*drv,xr=B[i]*drv;
+   const ol=d0[w],or=d1[w];d0[w]=xl;d1[w]=xr;w++;if(w===D)w=0;
+   let gOut=1;
+   if(lOn){gOut=r;ti=(ti+1)&15;h0[ti]=xl;h1[ti]=xr;
+    let pk=tp4(h0,ti),p2=tp4(h1,ti);if(p2>pk)pk=p2;const tg=pk>cd?cd/pk:1;
+    while(dt>dh){const q=(dt-1)%C;if(dq[q]>=tg)dt--;else break}
+    dq[dt%C]=tg;di[dt%C]=nn;dt++;
+    while(di[dh%C]<=nn-LA)dh++;
+    const m=dq[dh%C];msum+=m-mb[mi];mb[mi]=m;mi++;if(mi===LA)mi=0;const b=msum/LA;
+    r=b<r?b:r+(b-r)*relC;nn++}
+   let yl=ol*gOut,yr=or*gOut;
+   if(lOn){if(yl>ceil)yl=ceil;else if(yl<-ceil)yl=-ceil;if(yr>ceil)yr=ceil;else if(yr<-ceil)yr=-ceil}
+   oL[i]=yl*trim;oR[i]=yr*trim}
+  this.dw=w;this.ti=ti;this.dh=dh;this.dt=dt;this.n=nn;this.mi=mi;this.msum=msum;this.r=r}}
+
+// ---- loudness meter: ITU-R BS.1770 K-weighting, momentary / short-term / gated integrated, true peak, stereo
+class LoudDSP{
+ constructor(sr,o){this.sr=sr;this.sub=Math.round(sr*0.1);this.s=new Float64Array(8);this.acc=0;this.cnt=0;this.ring=new Float64Array(30);this.ri=0;this.nb=0;
+  this.hE=new Float64Array(1100);this.hC=new Float64Array(1100);this.lC=new Float64Array(1100);this.tp=!o||o.tp!==false;this.h=[new Float32Array(16),new Float32Array(16)];this.hi=0;this.warm=0;
+  this.bTp=0;this.bPk=0;this.allTp=0;this.allPk=0;this.ll=0;this.rr=0;this.lr=0;this.mm=0;this.ss=0;this.tll=0;this.trr=0;this.tlr=0;this.tmm=0;this.tss=0;this.onBlock=null;this.mom=-120;this.sht=-120}
+ resetIntegrated(){this.hE.fill(0);this.hC.fill(0);this.lC.fill(0);this.allTp=0;this.allPk=0;this.nb=0}
+ process(L,R,n){const s=this.s;let acc=this.acc,cnt=this.cnt,tp=this.tp,hi=this.hi;
+  for(let i=0;i<n;i++){const xl=L[i],xr=R[i];
+   let v=xl,y=1.53512485958697*v+s[0];s[0]=-2.69169618940638*v+1.69065929318241*y+s[1];s[1]=1.19839281085285*v-0.73248077421585*y;v=y;y=v+s[2];s[2]=-2*v+1.99004745483398*y+s[3];s[3]=v-0.99007225036621*y;acc+=y*y;
+   v=xr;y=1.53512485958697*v+s[4];s[4]=-2.69169618940638*v+1.69065929318241*y+s[5];s[5]=1.19839281085285*v-0.73248077421585*y;v=y;y=v+s[6];s[6]=-2*v+1.99004745483398*y+s[7];s[7]=v-0.99007225036621*y;acc+=y*y;
+   const al=xl<0?-xl:xl,ar=xr<0?-xr:xr;if(al>this.bPk)this.bPk=al;if(ar>this.bPk)this.bPk=ar;
+   if(tp){hi=(hi+1)&15;this.h[0][hi]=xl;this.h[1][hi]=xr;const p=Math.max(tp4(this.h[0],hi),tp4(this.h[1],hi));if(p>this.bTp)this.bTp=p}
+   this.ll+=xl*xl;this.rr+=xr*xr;this.lr+=xl*xr;const m=(xl+xr)*0.5,sd=(xl-xr)*0.5;this.mm+=m*m;this.ss+=sd*sd;
+   if(++cnt>=this.sub){this.block(acc/cnt);acc=0;cnt=0}}
+  this.acc=acc;this.cnt=cnt;this.hi=hi}
+ block(e){this.ring[this.ri]=e;this.ri=(this.ri+1)%30;this.nb++;
+  const avg=k=>{let t=0;for(let j=1;j<=k;j++)t+=this.ring[(this.ri-j+60)%30];return t/k};
+  const L=x=>-0.691+10*Math.log10(x+1e-20);
+  if(this.nb>=4){const e4=avg(4);this.mom=L(e4);const lv=this.mom;if(lv>-70){const bi=Math.min(1099,Math.max(0,Math.floor((lv+100)*10)));this.hE[bi]+=e4;this.hC[bi]++}}
+  this.sht=this.nb>=30?L(avg(30)):this.mom;
+  if(this.nb>=30&&this.sht>-70){this.lC[Math.min(1099,Math.max(0,Math.floor((this.sht+100)*10)))]++}
+  const tpd=this.bTp>0?20*Math.log10(this.bTp):-120,pkd=this.bPk>0?20*Math.log10(this.bPk):-120;if(this.bTp>this.allTp)this.allTp=this.bTp;if(this.bPk>this.allPk)this.allPk=this.bPk;
+  const den=Math.sqrt(this.ll*this.rr)+1e-20,corr=this.lr/den,w=this.ss/(this.mm+this.ss+1e-20);
+  this.tll+=this.ll;this.trr+=this.rr;this.tlr+=this.lr;this.tmm+=this.mm;this.tss+=this.ss;
+  const b={m:this.mom,s:this.sht,tp:tpd,pk:pkd,corr:corr,w:w};this.bTp=0;this.bPk=0;this.ll=0;this.rr=0;this.lr=0;this.mm=0;this.ss=0;
+  if(this.onBlock){b.i=this.integrated();this.onBlock(b)}}
+ lra(){let N=0,E=0;for(let k=0;k<1100;k++){if(this.lC[k]){N+=this.lC[k];E+=this.lC[k]*Math.pow(10,((k/10-100+0.05)+0.691)/10)}}if(N<5)return 0;const gate=10*Math.log10(E/N)-0.691-20;let M=0;for(let k=0;k<1100;k++)if(this.lC[k]&&(k/10-100+0.05)>=gate)M+=this.lC[k];if(!M)return 0;const at=f=>{let c=0;for(let k=0;k<1100;k++){if(this.lC[k]&&(k/10-100+0.05)>=gate){c+=this.lC[k];if(c>=f*M)return k/10-100+0.05}}return 0};return Math.max(0,at(0.95)-at(0.10))}
+ integrated(){let E=0,N=0;for(let k=0;k<1100;k++){if(this.hC[k]){E+=this.hE[k];N+=this.hC[k]}}if(!N)return-120;
+  const gate=-0.691+10*Math.log10(E/N)-10;let E2=0,N2=0;for(let k=0;k<1100;k++){if(this.hC[k]&&(k/10-100+0.05)>=gate){E2+=this.hE[k];N2+=this.hC[k]}}
+  return N2?-0.691+10*Math.log10(E2/N2):-120}
+ summary(){const den=Math.sqrt(this.tll*this.trr)+1e-20;return{lufs:this.integrated(),tp:this.allTp>0?20*Math.log10(this.allTp):-120,pk:this.allPk>0?20*Math.log10(this.allPk):-120,corr:this.tlr/den,width:this.tss/(this.tmm+this.tss+1e-20),lra:this.lra()}}}
+
+// ---- long-term average spectrum in 31 third-octave bands (20 Hz .. 20 kHz), for matching to a reference
+const SPEC_FC=[];for(let i=0;i<31;i++)SPEC_FC.push(20*Math.pow(2,i/3));
+class SpecDSP{
+ constructor(sr){const N=8192;this.N=N;this.sr=sr;this.buf=new Float64Array(N);this.pos=0;this.filled=0;this.cnt=0;this.hop=Math.round(sr*0.5);
+  this.re=new Float64Array(N);this.im=new Float64Array(N);this.acc=new Float64Array(31);this.frames=0;
+  this.win=new Float64Array(N);for(let i=0;i<N;i++)this.win[i]=0.5-0.5*Math.cos(TWOPI*i/N);
+  this.rev=new Uint16Array(N);const bits=13;for(let i=0;i<N;i++){let r=0,x=i;for(let b=0;b<bits;b++){r=(r<<1)|(x&1);x>>=1}this.rev[i]=r}
+  this.cs=new Float64Array(N/2);this.sn=new Float64Array(N/2);for(let i=0;i<N/2;i++){this.cs[i]=Math.cos(TWOPI*i/N);this.sn[i]=-Math.sin(TWOPI*i/N)}
+  const df=sr/N;this.bands=SPEC_FC.map(function(fc){const lo=Math.ceil(fc/1.122/df),hi=Math.floor(fc*1.122/df);return hi>=lo?[lo,hi]:[Math.round(fc/df),Math.round(fc/df)]})}
+ push(L,R,n){for(let i=0;i<n;i++){this.buf[this.pos]=(L[i]+R[i])*0.5;this.pos=(this.pos+1)&(this.N-1);if(this.filled<this.N)this.filled++;if(++this.cnt>=this.hop){this.cnt=0;if(this.filled>=this.N)this.frame()}}}
+ frame(){const N=this.N,re=this.re,im=this.im;let e=0;
+  for(let i=0;i<N;i++){const v=this.buf[(this.pos+i)&(N-1)];e+=v*v;re[this.rev[i]]=v*this.win[i];im[i]=0}
+  if(e/N<1e-9)return; // skip near-silence so gaps don't drag the average down
+  for(let sz=2;sz<=N;sz<<=1){const half=sz>>1,step=N/sz;for(let s=0;s<N;s+=sz)for(let j=0,k=0;j<half;j++,k+=step){const a=s+j,b=a+half,tr=re[b]*this.cs[k]-im[b]*this.sn[k],ti=re[b]*this.sn[k]+im[b]*this.cs[k];re[b]=re[a]-tr;im[b]=im[a]-ti;re[a]+=tr;im[a]+=ti}}
+  for(let b=0;b<31;b++){const r=this.bands[b];let p=0;for(let k=r[0];k<=r[1];k++)p+=re[k]*re[k]+im[k]*im[k];this.acc[b]+=p/(r[1]-r[0]+1)}
+  this.frames++}
+ result(){const o=[];for(let b=0;b<31;b++)o.push(10*Math.log10(this.acc[b]/Math.max(1,this.frames)+1e-20));return o}}
+`;
+
+// processors that only exist inside the AudioWorklet
+const MDSP_WORKLET = MDSP_SRC + String.raw`
+class MasterFx extends AudioWorkletProcessor{
+ constructor(){super();this.d=new MasterDSP(sampleRate);this.port.onmessage=e=>{if(e.data&&e.data.chain)this.d.setParams(e.data.chain)}}
+ process(i,o){const a=i[0],b=o[0];if(!a||!a.length||!b||!b.length)return true;const L=a[0],R=a[1]||a[0];this.d.process(L,R,b[0],b[1]||b[0],L.length);return true}}
+registerProcessor('master-fx',MasterFx);
+class MasterMeter extends AudioWorkletProcessor{
+ constructor(){super();this.l=new LoudDSP(sampleRate,{tp:true});this.l.onBlock=b=>this.port.postMessage(b);this.port.onmessage=e=>{if(e.data==='reset')this.l.resetIntegrated()}}
+ process(i){const a=i[0];if(!a||!a.length)return true;this.l.process(a[0],a[1]||a[0],a[0].length);return true}}
+registerProcessor('master-meter',MasterMeter);
+`;
+
+// job runner inside a Web Worker: streams chunks through the chain, measures the result, optionally returns the processed audio
+const MDSP_JOB = MDSP_SRC + String.raw`
+let J=null;
+function runChunk(f,last){
+ const n=f.length>>1,L=new Float32Array(n),R=new Float32Array(n);for(let i=0,j=0;i<n;i++){L[i]=f[j++];R[i]=f[j++]}
+ const parts=[];const feed=(l,r,m)=>{let oL=l,oR=r;if(J.dsp){oL=new Float32Array(m);oR=new Float32Array(m);J.dsp.process(l,r,oL,oR,m)}
+  let a=0;if(J.skip>0){a=Math.min(J.skip,m);J.skip-=a}
+  if(a<m){const sl=oL.subarray(a),sr=oR.subarray(a);J.loud.process(sl,sr,m-a);if(J.spec)J.spec.push(sl,sr,m-a);if(J.out)parts.push([sl,sr])}};
+ feed(L,R,n);
+ if(last&&J.dsp){const z=J.dsp.latency;feed(new Float32Array(z),new Float32Array(z),z)}
+ let buf=null;if(J.out){let tot=0;for(const p of parts)tot+=p[0].length;buf=new Float32Array(tot*2);let k=0;for(const p of parts)for(let i=0;i<p[0].length;i++){buf[k++]=p[0][i];buf[k++]=p[1][i]}}
+ return buf}
+onmessage=function(e){const m=e.data;
+ if(m.cmd==='init'){J={dsp:m.chain?new MasterDSP(48000):null,loud:new LoudDSP(48000,{tp:true}),spec:m.spec?new SpecDSP(48000):null,skip:0,out:!!m.output};
+  if(J.dsp){J.dsp.setParams(m.chain);J.skip=J.dsp.latency}postMessage({type:'ready'})}
+ else if(m.cmd==='data'){const buf=runChunk(m.buf,m.last);const msg={type:'out',buf:buf,done:!!m.last};
+  if(m.last){const s=J.loud.summary();s.spec=J.spec?J.spec.result():null;msg.stats=s}
+  postMessage(msg,buf?[buf.buffer]:[])}};
+`;
+// same DSP on the main thread (only for tiny things like measuring one block); heavy work goes to the worker
+const MD = (new Function(MDSP_SRC + '\nreturn { MasterDSP, LoudDSP, SpecDSP, SPEC_FC, bqCoef };'))();
+
+// ---- mastering: works on ONE stereo mix — either a finished file (e.g. a full Suno song) or the
+// multitrack project bounced to a single mix. Heavy lifting streams through a worker, chunk by chunk.
+const deepMerge = (d, o) => { if (o == null || typeof o !== 'object' || Array.isArray(o)) return o === undefined ? d : o; const r = Array.isArray(d) ? d.slice() : { ...d }; for (const k in o) r[k] = (d && typeof d[k] === 'object' && !Array.isArray(d[k])) ? deepMerge(d[k], o[k]) : o[k]; return r; };
+function masterDefaults() { const simple = { intensity: 35, tone: 0 }; return { src: null, chain: simpleToChain(MD.MasterDSP.defaults(), simple), simple, refs: [], match: true, sel: 'B', used: false }; }
+function normalizeMaster(m) { const d = masterDefaults(); const r = deepMerge(d, m || {}); r.refs = (m && m.refs) || []; r.src = (m && m.src) || null; return r; }
+const chainKey = c => JSON.stringify(c);
+const fmtL = v => v == null || v <= -119 ? '—' : v.toFixed(1);
+
+// ---- front panel (Intensity, Brighter/Warmer) -> real controls --------------------------------
+function simpleToChain(chain, s) {
+  const I = clamp(s.intensity, 0, 100), T = clamp(s.tone, -100, 100), c = chain;
+  c.comp.on = I > 2; c.comp.thr = +(-6 - 0.14 * I).toFixed(1); c.comp.ratio = +(1.4 + I * 0.018).toFixed(2); c.comp.att = 30; c.comp.rel = 180; c.comp.knee = 8; c.comp.mk = +(I * 0.03).toFixed(1);
+  c.lim.on = true; c.lim.drive = +(I * 0.09).toFixed(1); c.lim.ceil = c.lim.ceil == null ? -1 : c.lim.ceil;
+  c.eq.hs.f = 8000; c.eq.hs.g = +(T > 0 ? T * 0.04 : T * 0.03).toFixed(1);
+  c.eq.ls.f = 140; c.eq.ls.g = +(T < 0 ? -T * 0.03 : -T * 0.01).toFixed(1);
+  return c;
+}
+
+const Master = {
+  stats: { src: null, mas: null, masKey: '' }, tokS: { cancel: false }, tokM: { cancel: false },
+  get m() { return P.master; },
+  // ---- streaming job (worker): reads chunks from storage, runs chain + meters, optionally returns processed audio
+  async job({ chunkAt, frames, chain, spec, onOut, onProg, token }) {
+    const url = this._url || (this._url = URL.createObjectURL(new Blob([MDSP_JOB], { type: 'text/javascript' })));
+    const w = new Worker(url), nch = Math.max(1, Math.ceil(frames / CHUNK));
+    const next = () => new Promise((res, rej) => { w.onmessage = e => res(e.data); w.onerror = e => rej(new Error(e.message || 'worker error')); });
+    try {
+      let p = next(); w.postMessage({ cmd: 'init', chain: chain || null, spec: !!spec, output: !!onOut }); await p;
+      let stats = null;
+      for (let k = 0; k < nch; k++) {
+        if (token && token.cancel) return null;
+        let f = await chunkAt(k); const want = Math.min(CHUNK, frames - k * CHUNK) * 2;
+        if (!f || f.length !== want || f.byteOffset || f.buffer.byteLength !== f.byteLength) { const g = new Float32Array(want); if (f) g.set(f.subarray(0, Math.min(f.length, want))); f = g; }
+        p = next(); w.postMessage({ cmd: 'data', buf: f, last: k === nch - 1 }, [f.buffer]); const r = await p;
+        if (r.buf && onOut) await onOut(r.buf);
+        if (r.stats) stats = r.stats; if (onProg) onProg((k + 1) / nch);
+      }
+      return stats;
+    } finally { w.terminate(); }
+  },
+  assetChunks(aid) { return k => Store.readChunk(P.id, aid, k); },
+  async analyze(aid, frames, chain, spec, onProg, token) { return this.job({ chunkAt: this.assetChunks(aid), frames, chain, spec, onProg, token }); },
+  // ---- source handling
+  mixStamp() { const s = JSON.stringify({ t: P.tracks, m: P.mutes || [] }); let x = 5381; for (let i = 0; i < s.length; i++) x = ((x << 5) + x + s.charCodeAt(i)) | 0; return x + ':' + s.length; },
+  stale() { const s = this.m.src; return !!(s && s.kind === 'mix' && s.stamp !== this.mixStamp()); },
+  async dropAsset(aid) { if (!aid) return; if (P.tracks.some(t => t.clips.some(c => c.aid === aid)) || this.m.refs.some(r => r.aid === aid)) return; await Store.remove(`projects/${P.id}/a/${aid}`); delete P.assets[aid]; Peaks.map.delete(aid); },
+  async setFileSource(file, pr) {
+    const old = this.m.src && this.m.src.aid;
+    const aid = await Engine.importFile(file, f => pr && pr.set(f * 0.8, 'Reading ' + file.name));
+    Peaks.map.delete(aid); P.assets[aid].nopeaks = true;
+    this.m.src = { aid, name: P.assets[aid].name, frames: P.assets[aid].frames, kind: 'file' };
+    await this.dropAsset(old); this.resetStats(); Save.mark();
+  },
+  async bounce(pr) { // project -> one stereo mix stored as an asset (one track rendered at a time; nothing held in RAM)
+    const body = projectEnd(); if (!body) { toast('Nothing to bounce — the project is empty'); return false; }
+    const solo = P.tracks.some(t => t.solo), tracks = P.tracks.filter(t => isAudible(t, solo) && t.clips.length); if (!tracks.length) { toast('No audible tracks'); return false; }
+    const len = body + Math.round(Math.max(0, ...tracks.map(chainTail)) * SR), old = this.m.src && this.m.src.aid, aid = uid('a'), stamp = this.mixStamp();
+    const mx = await mixChunks(tracks, len, (f, t) => pr && pr.set(f * 0.85, t));
+    try { const n = Math.ceil(len / CHUNK); for (let k = 0; k < n; k++) { await Store.writeChunk(P.id, aid, k, await mx.chunkAt(k)); if (pr) pr.set(0.85 + 0.15 * (k + 1) / n, 'Saving mix…'); } }
+    finally { mx.cleanup(); }
+    P.assets[aid] = { id: aid, name: P.name + ' (mix)', frames: len, nopeaks: true };
+    this.m.src = { aid, name: P.name + ' (project mix)', frames: len, kind: 'mix', stamp };
+    await this.dropAsset(old); this.resetStats(); Save.mark(); return true;
+  },
+  resetStats() { this.stats = { src: null, mas: null, masKey: '' }; this.tokS.cancel = true; this.tokM.cancel = true; },
+  async addRefs(files, pr) {
+    for (const f of files) {
+      const aid = await Engine.importFile(f, p => pr && pr.set(p * 0.6, 'Reading ' + f.name)); Peaks.map.delete(aid); P.assets[aid].nopeaks = true;
+      const st = await this.analyze(aid, P.assets[aid].frames, null, true, p => pr && pr.set(0.6 + 0.4 * p, 'Measuring ' + f.name));
+      this.m.refs.push({ id: uid('r'), aid, name: P.assets[aid].name, frames: P.assets[aid].frames, lufs: st.lufs, tp: st.tp, width: st.width, lra: st.lra, spec: st.spec });
+    }
+    Save.mark();
+  },
+  async removeRef(id) { const r = this.m.refs.find(x => x.id === id); if (!r) return; this.m.refs = this.m.refs.filter(x => x.id !== id); if (MP.sel === id) MP.select('B'); await this.dropAsset(r.aid); Save.mark(); },
+  // ---- measurements of the original and the mastered result (whole file, streamed through the worker)
+  async measureSrc(pr) {
+    const s = this.m.src; if (!s) return null; this.tokS.cancel = true; const tk = (this.tokS = { cancel: false });
+    const st = await this.analyze(s.aid, s.frames, null, true, pr, tk); if (st && !tk.cancel) this.stats.src = st; return st;
+  },
+  async measureMas(pr) {
+    const s = this.m.src; if (!s) return null; this.tokM.cancel = true; const key = chainKey(this.m.chain), tk = (this.tokM = { cancel: false });
+    const st = await this.analyze(s.aid, s.frames, this.m.chain, true, pr, tk); if (st && !tk.cancel && key === chainKey(this.m.chain)) { this.stats.mas = st; this.stats.masKey = key; } return st;
+  },
+  // ---- mastered WAV (48 kHz / 24-bit), streamed
+  async writeMastered(sink, frames, chunkAt, chain, onProg) {
+    await sink.write(wavHeader(frames)); const stt = { peak: 0, clipped: 0 };
+    const stats = await this.job({ chunkAt, frames, chain, onProg, onOut: async buf => { await sink.write(encode24(buf, stt)); } });
+    return { st: stt, stats };
+  },
+  async exportMastered() {
+    const s = this.m.src; if (!s) { toast('Load a file or bounce the project first'); return; }
+    if (this.stale() && !confirm('The project changed since the mix was bounced. Export the old bounce anyway?\n(Cancel, then use “Re-bounce” to update it.)')) return;
+    let sink; try { sink = await openSink(safeName(s.name.replace(/ \(project mix\)$/, '')) + ' mastered.wav'); } catch (e) { return; }
+    const pr = progress('Exporting mastered WAV');
+    try {
+      const r = await this.writeMastered(sink, s.frames, this.assetChunks(s.aid), this.m.chain, p => pr.set(p, 'Mastering and writing…'));
+      await sink.close(); toast(masteredMsg(r), 6000);
+    } catch (e) { console.error(e); sink.abort(); toast('Export failed: ' + e.message, 5000); } finally { pr.close(); }
+  },
+  // ---- "match my reference": a plain-language comparison + optional, adjustable suggestions (it is a guide, not a copy)
+  regions(my, ref) { // my - ref, in dB, after removing the overall level difference (balance only)
+    const diff = my.spec.map((v, i) => v - ref.spec[i]), mid = diff.slice(12, 25).reduce((a, b) => a + b, 0) / 13, d = diff.map(v => v - mid), av = (a, b) => d.slice(a, b + 1).reduce((x, y) => x + y, 0) / (b - a + 1);
+    return { bass: av(3, 9), lowmid: av(10, 15), pres: av(17, 23), high: av(25, 29) };
+  },
+  compare(my, ref) { // plain-language lines + numbers for loudness, tone, width, dynamics
+    const rg = this.regions(my, ref), more = (v, a, b) => v > 0 ? a : b, n1 = v => Math.abs(v).toFixed(1);
+    const tone = (v, noun, plural) => Math.abs(v) < 1 ? `Your ${noun} ${plural ? 'are' : 'is'} about the same as the reference` : `Your ${noun} ${plural ? 'are' : 'is'} ${n1(v)} dB ${more(v, 'louder', 'quieter')} than the reference`;
+    const dl = my.lufs - ref.lufs, dw = (my.width - ref.width) * 100, dlra = my.lra - ref.lra, dplr = (my.tp - my.lufs) - (ref.tp - ref.lufs);
+    return {
+      rg, dl, dw, dlra, dplr,
+      loud: Math.abs(dl) < 0.5 ? `Your loudness is about the same as the reference (${fmtL(my.lufs)} vs ${fmtL(ref.lufs)} LUFS)` : `Your track is ${n1(dl)} LU ${more(dl, 'louder', 'quieter')} than the reference (${fmtL(my.lufs)} vs ${fmtL(ref.lufs)} LUFS)`,
+      bass: tone(rg.bass, 'bass (40–160 Hz)'), lowmid: tone(rg.lowmid, 'low-mids (200–640 Hz, the boxy zone)', true), pres: tone(rg.pres, 'vocal presence (1–4 kHz)'), high: tone(rg.high, 'highs (6–16 kHz)', true),
+      width: Math.abs(dw) < 3 ? `Your stereo width is about the same as the reference (${Math.round(my.width * 100)}% vs ${Math.round(ref.width * 100)}% side energy)` : `Your track is ${more(dw, 'wider', 'narrower')} than the reference (${Math.round(my.width * 100)}% vs ${Math.round(ref.width * 100)}% side energy)` + (my.width < 0.06 && dw < 0 ? '. Your mix is almost mono, so widening it can only help a little' : ''),
+      dyn: Math.abs(dlra) < 1 && Math.abs(dplr) < 1.5 ? `Your dynamics are about the same as the reference (LRA ${my.lra.toFixed(1)} vs ${ref.lra.toFixed(1)} LU)` : `Your track is ${more(dlra, 'more', 'less')} dynamic than the reference (LRA ${my.lra.toFixed(1)} vs ${ref.lra.toFixed(1)} LU), and its peaks stand out ${n1(dplr)} dB ${more(dplr, 'more', 'less')}`
+    };
+  },
+  defaultRows(src, ref, simple) { // suggested values (damped to ~70% of the difference, capped) — every row is optional
+    const c = this.compare(src, ref), rg = c.rg, k = 0.7, cl = (v, m) => +clamp(-v * k, -m, m).toFixed(1);
+    const f = src.width, ft = ref.width, kw = Math.sqrt((ft / (1 - ft + 1e-9)) / (f / (1 - f + 1e-9) + 1e-9)), wv = +clamp(1 + (clamp(kw, 0.5, 2) - 1) * k, 0.6, 1.4).toFixed(2);
+    const R = (on, val, min, max, step, unit, label) => ({ on, val, def: val, min, max, step, unit, label });
+    return { text: c, rows: {
+      loud: R(true, 3, 0, 14, 0.1, 'dB', 'Limiter drive'),
+      bass: R(Math.abs(rg.bass) >= 1, cl(rg.bass, 4.5), -9, 9, 0.1, 'dB', 'Bass (low shelf)'), lowmid: R(Math.abs(rg.lowmid) >= 1, cl(rg.lowmid, 3), -9, 9, 0.1, 'dB', 'Low-mids'),
+      pres: R(Math.abs(rg.pres) >= 1, cl(rg.pres, 3), -9, 9, 0.1, 'dB', 'Vocal presence'), high: R(Math.abs(rg.high) >= 1, cl(rg.high, 5), -9, 9, 0.1, 'dB', 'Highs (high shelf)'),
+      width: R(Math.abs(c.dw) >= 3, wv, 0.5, 1.5, 0.01, '×', 'Stereo width'),
+      dyn: R(Math.abs(c.dlra) >= 1 || Math.abs(c.dplr) >= 1.5, Math.round(clamp(simple.intensity + 2.5 * c.dlra, 0, 100)), 0, 100, 1, '%', 'Compression amount') } };
+  },
+  chainFromRows(base, rows) {
+    const c = clone(base); c.on = true; const r = rows;
+    if (r.bass.on) { c.eq.on = true; c.eq.ls = { f: 110, g: r.bass.val }; } if (r.lowmid.on) { c.eq.on = true; c.eq.lm = { f: 320, g: r.lowmid.val, q: 0.8 }; }
+    if (r.pres.on) { c.eq.on = true; c.eq.pr = { f: 2800, g: r.pres.val, q: 0.8 }; } if (r.high.on) { c.eq.on = true; c.eq.hs = { f: 9000, g: r.high.val }; }
+    if (r.width.on) c.width = r.width.val;
+    if (r.dyn.on) { const a = r.dyn.val; c.comp.on = a > 2; c.comp.thr = +(-6 - 0.14 * a).toFixed(1); c.comp.ratio = +(1.4 + a * 0.018).toFixed(2); c.comp.mk = +(a * 0.03).toFixed(1); }
+    if (r.loud.on) { c.lim.on = true; c.lim.drive = r.loud.val; }
+    return c;
+  },
+  async aimLoudness(base, rows, targetLufs, pr) { // two quick passes: find the limiter drive that lands on the target loudness
+    const s = this.m.src; let drive = rows.loud.val, got = null;
+    for (let i = 0; i < 2; i++) {
+      const c = this.chainFromRows(base, { ...rows, loud: { ...rows.loud, on: true, val: drive } }); if (pr) pr(i / 2);
+      got = await this.analyze(s.aid, s.frames, c, false, p => pr && pr((i + p) / 2)); if (!got) return null;
+      drive = +clamp(drive + (targetLufs - got.lufs), 0, 14).toFixed(1);
+    }
+    return { drive, got: got.lufs };
+  },
+  async matchPrep(ref, pr) {
+    if (!this.m.src) return null; if (!this.stats.src) { pr.set(0.05, 'Measuring your mix…'); await this.measureSrc(); }
+    const src = this.stats.src, d = this.defaultRows(src, ref, this.m.simple), base = clone(this.m.chain);
+    pr.set(0.3, 'Finding a matching loudness…'); const a = await this.aimLoudness(base, d.rows, ref.lufs, f => pr.set(0.3 + 0.7 * f));
+    if (!a) return null; d.rows.loud.val = d.rows.loud.def = a.drive; d.aimed = a.got; return { ...d, ref, base };
+  }
+};
+const masteredMsg = r => `Exported — ${fmtL(r.stats.lufs)} LUFS, true peak ${fmtL(r.stats.tp)} dBTP` + (r.st.clipped ? ` (${r.st.clipped} samples clipped!)` : '');
+
+// ---- monitor path: source -> [A original | B mastering chain] / reference -> level-matched -> meters
+const MP = {
+  built: false, playing: false, startS: 0, t0: 0, timer: null, busy: false, gen: 0, srcs: [], LOOK: 2.5, sel: 'B', aid: null, frames: 0, pos0: 0, g: {}, meterOut: null,
+  async build() {
+    if (this.built) return; const ctx = Engine.ctx; await Engine.fxReady;
+    await ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([MDSP_WORKLET], { type: 'text/javascript' })));
+    const G = () => ctx.createGain(), g = this.g = { src: G(), ref: G(), dry: G(), mas: G(), rf: G(), mon: G() };
+    this.delay = ctx.createDelay(0.1); this.delay.delayTime.value = Math.ceil(0.005 * SR + 6) / SR;
+    this.chain = new AudioWorkletNode(ctx, 'master-fx', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] });
+    g.src.connect(this.delay); this.delay.connect(g.dry); g.src.connect(this.chain); this.chain.connect(g.mas); g.ref.connect(g.rf);
+    g.dry.connect(g.mon); g.mas.connect(g.mon); g.rf.connect(g.mon);
+    for (const n of [g.dry, g.mas, g.rf]) n.gain.value = 0;
+    const lim = makeLimiter(ctx, g.mon); // safety only: a level-matched boost can never clip the speakers
+    this.an = ctx.createAnalyser(); this.an.fftSize = 4096; this.an.smoothingTimeConstant = 0.75; this.an.minDecibels = -110;
+    this.sp = ctx.createChannelSplitter(2); this.aL = ctx.createAnalyser(); this.aR = ctx.createAnalyser(); this.aL.fftSize = this.aR.fftSize = 512;
+    lim.connect(this.an); this.an.connect(ctx.destination); lim.connect(this.sp); this.sp.connect(this.aL, 0); this.sp.connect(this.aR, 1);
+    this.meter = new AudioWorkletNode(ctx, 'master-meter', { numberOfInputs: 1, numberOfOutputs: 0, channelCount: 2, channelCountMode: 'explicit' });
+    lim.connect(this.meter); this.meter.port.onmessage = e => { this.mb = e.data; };
+    this.built = true; this.pushChain();
+  },
+  pushChain() { if (this.built) this.chain.port.postMessage({ chain: P.master.chain }); },
+  asset() { const m = P.master; if (this.sel === 'A' || this.sel === 'B') return m.src ? { aid: m.src.aid, frames: m.src.frames } : null; const r = m.refs.find(x => x.id === this.sel); return r ? { aid: r.aid, frames: r.frames } : null; },
+  // loudness-matched gains: everything plays at the loudness of the mastered result
+  trims() {
+    const m = P.master, S = Master.stats, out = { A: 1, B: 1, refs: {} }; if (!m.match || !S.src) return out;
+    const tgt = S.mas ? S.mas.lufs : null; // last measured result (kept while a new measurement runs, so levels don't jump) if (tgt == null) return out;
+    const gdb = l => dbToG(clamp(tgt - l, -24, 18)); out.A = gdb(S.src.lufs); for (const r of m.refs) out.refs[r.id] = gdb(r.lufs); return out;
+  },
+  applySel() {
+    if (!this.built) return; const t = this.trims(), now = Engine.ctx.currentTime, g = this.g, s = this.sel, set = (n, v) => n.gain.setTargetAtTime(v, now, 0.006);
+    set(g.dry, s === 'A' ? t.A : 0); set(g.mas, s === 'B' ? t.B : 0); set(g.rf, (s !== 'A' && s !== 'B') ? (t.refs[s] || 1) : 0);
+  },
+  async select(id) {
+    const was = this.asset() && this.asset().aid, wasRef = this.sel !== 'A' && this.sel !== 'B'; this.sel = id; P.master.sel = id; const a = this.asset(), isRef = id !== 'A' && id !== 'B';
+    if (this.playing && a && (a.aid !== was || isRef !== wasRef)) { await this.startAt(Math.min(this.pos(), a.frames - 1)); }
+    this.applySel(); if (this.onSel) this.onSel();
+  },
+  pos() { if (!this.playing) return this.pos0; return clamp(this.startS + Math.max(0, (Engine.ctx.currentTime - this.t0 - (Engine.ctx.outputLatency || 0)) * SR), 0, this.frames); },
+  async play() {
+    const a = this.asset(); if (!a) return; await this.build(); await Engine.ctx.resume(); Engine.pause(); if (this.playing) return;
+    await this.startAt(this.pos0 >= a.frames - SR * 0.05 ? 0 : this.pos0);
+  },
+  async startAt(s) {
+    const a = this.asset(); if (!a) return; this.stopSources(); this.aid = a.aid; this.frames = a.frames; this.startS = Math.round(clamp(s, 0, a.frames));
+    this.t0 = Math.ceil((Engine.ctx.currentTime + 0.08) * SR) / SR; this.next = this.startS; this.playing = true; this.bus = (this.sel === 'A' || this.sel === 'B') ? this.g.src : this.g.ref;
+    this.applySel(); clearInterval(this.timer); this.timer = setInterval(() => this.tick(), 90); this.tick();
+  },
+  pause() { if (!this.playing) return; this.pos0 = Math.round(this.pos()); this.stopSources(); this.playing = false; clearInterval(this.timer); },
+  seek(s) { s = Math.round(clamp(s, 0, (this.asset() || { frames: 0 }).frames)); if (this.playing) this.startAt(s); else this.pos0 = s; },
+  stopSources() { for (const s of this.srcs) { try { s.stop(); s.disconnect(); } catch (e) { } } this.srcs = []; this.gen++; },
+  async tick() {
+    if (!this.playing || this.busy) return; this.busy = true; const gen = this.gen;
+    try {
+      const ctx = Engine.ctx, now = this.startS + Math.max(0, (ctx.currentTime - this.t0) * SR), win = now + this.LOOK * SR, end = this.frames;
+      while (this.next < Math.min(end, win)) {
+        const n = Math.floor(this.next / CHUNK), buf = await Cache.get(this.aid, n); if (gen !== this.gen || !this.playing) return;
+        let s = this.next, fr = Math.min((n + 1) * CHUNK, end) - s, when = this.t0 + (s - this.startS) / SR; const late = ctx.currentTime + 0.01 - when;
+        if (late > 0) { const skip = Math.ceil(late * SR) + 256; s += skip; fr -= skip; when = this.t0 + (s - this.startS) / SR; }
+        fr = Math.min(fr, buf ? buf.length - (s - n * CHUNK) : 0);
+        if (fr > 0 && buf) { const src = ctx.createBufferSource(); src.buffer = buf; src.connect(this.bus); src.start(when, (s - n * CHUNK) / SR, fr / SR); this.srcs.push(src); src.onended = () => { const i = this.srcs.indexOf(src); if (i >= 0) this.srcs.splice(i, 1); try { src.disconnect(); } catch (e) { } }; }
+        this.next = Math.max(this.next, s) + Math.max(fr, 1);
+      }
+      if (now >= end + SR * 0.3) { this.pause(); this.pos0 = 0; }
+    } catch (e) { console.error('mplay', e); } finally { this.busy = false; }
+  }
+};
+
+// ---- mastering view (full-screen over the editor) ------------------------------------------------
+const MUI = {
+  open: false, e: {}, cmp: null, status: '', seeking: false, tM: null, sb: null,
+  el() { return $('#mview'); },
+  async openView() {
+    this.open = true; this.el().style.display = 'flex'; $('#masterBtn').classList.add('on'); Engine.pause(); this.render();
+    if (P.master.src && !Master.stats.src) this.measureAll();
+    if (!this.looping) { this.looping = true; requestAnimationFrame(() => this.loop()); }
+  },
+  close() { MP.pause(); this.open = false; this.el().style.display = 'none'; $('#masterBtn').classList.remove('on'); UI.dirty = true; },
+  toggle() { MP.playing ? MP.pause() : MP.play(); this.syncPlay(); },
+  syncPlay() { if (this.e.play) this.e.play.textContent = MP.playing ? '❚❚' : '▶'; },
+  // ---- choosing what to master
+  async chooseFile() {
+    pickFiles(async files => {
+      const f = files[0], pr = progress('Loading ' + f.name);
+      try {
+        if (P.tracks.length || P.master.src) { await Save.now(true); const p = newProject('Master – ' + f.name.replace(/\.[^.]+$/, '')); await Store.writeFile(`projects/${p.id}/project.json`, JSON.stringify(p)); await setProject(p); toast('Started a new project for this song so your other work stays untouched', 4000); }
+        await Master.setFileSource(f, pr); P.master.used = true; MP.pos0 = 0; MP.sel = 'B'; P.master.sel = 'B'; Save.mark();
+      } catch (e) { console.error(e); toast('Could not load that file: ' + e.message, 4500); }
+      finally { pr.close(); }
+      this.render(); this.measureAll();
+    });
+  },
+  async bounceMix() {
+    MP.pause(); const pr = progress('Bouncing the project to one stereo mix');
+    try { if (await Master.bounce(pr)) { P.master.used = true; MP.pos0 = 0; } } catch (e) { console.error(e); toast('Bounce failed: ' + e.message, 4500); } finally { pr.close(); }
+    this.render(); this.measureAll();
+  },
+  addRefs() { pickFiles(async files => { const pr = progress('Adding reference'); try { await Master.addRefs([...files], pr); } catch (e) { console.error(e); toast('Could not add reference: ' + e.message, 4500); } finally { pr.close(); } this.render(); }); },
+  // ---- measuring (whole file, in a worker, debounced)
+  async measureAll() {
+    if (!P.master.src) return; this.status = 'Measuring…'; this.updStats();
+    try { await Master.measureSrc(); await Master.measureMas(); } catch (e) { console.error(e); }
+    this.status = ''; MP.applySel(); this.updStats();
+  },
+  schedMeasure() { clearTimeout(this.tM); Master.tokM.cancel = true; this.tM = setTimeout(async () => { this.status = 'Measuring mastered result…'; this.updStats(); try { await Master.measureMas(); } catch (e) { console.error(e); } this.status = ''; MP.applySel(); this.updStats(); }, 900); },
+  chainChanged() { P.master.used = true; MP.pushChain(); this.schedMeasure(); Save.mark(); this.updStats(); },
+  // ---- layout
+  render() {
+    const el = this.el(), m = P.master; el.textContent = ''; this.e = {};
+    if (!m.src) { el.append(this.emptyState()); return; }
+    el.append(h('div', { class: 'mcol' }, this.sourceBar(), this.player(), this.meters(), this.views(), this.statsCard()), h('div', { class: 'mside' }, this.frontPanel(), this.matchBox(), this.advPanel()));
+    this.updStats(); this.syncPlay();
+  },
+  emptyState() {
+    const hasTracks = P.tracks.length > 0;
+    return h('div', { class: 'mempty' }, h('h2', null, 'Mastering'),
+      h('p', { class: 'dim' }, 'Load a finished stereo song (a full Suno download, say) and master it right here — EQ, bus compressor, limiter, loudness and true-peak meters, and A/B against the original and your reference tracks.'),
+      h('div', { class: 'mdrop' }, h('button', { class: 'primary big', onclick: () => this.chooseFile() }, 'Choose a finished WAV to master…'), h('div', { class: 'dim' }, 'Everything stays on this Chromebook. Exports are 48 kHz / 24-bit WAV.')),
+      hasTracks ? h('div', { class: 'mdrop' }, h('button', { class: 'big', onclick: () => this.bounceMix() }, 'Master this project’s mix instead'), h('div', { class: 'dim' }, 'Bounces all tracks (one at a time) into one stereo mix, then masters that.')) : null,
+      h('button', { onclick: () => this.close() }, 'Back to the editor'));
+  },
+  sourceBar() {
+    const s = P.master.src, stale = Master.stale();
+    return h('div', { class: 'msrc' }, h('div', null, h('b', null, s.name), h('span', { class: 'dim' }, '  ' + fmtTime(s.frames) + (s.kind === 'mix' ? '  ·  bounced project mix' : '  ·  finished file'))),
+      stale ? h('span', { class: 'warnb' }, 'Project changed since this mix was bounced') : null,
+      h('div', { class: 'sp' }), P.tracks.length ? h('button', { onclick: () => this.bounceMix() }, s.kind === 'mix' ? '↻ Re-bounce project' : 'Use project mix') : null,
+      h('button', { onclick: () => this.chooseFile() }, 'Load another file…'), h('button', { onclick: () => this.close() }, '✕ Editor'));
+  },
+  player() {
+    const e = this.e; e.play = h('button', { class: 'primary', style: 'width:46px', onclick: () => this.toggle() }, '▶');
+    e.seek = h('input', { type: 'range', min: 0, max: 1000, value: 0, class: 'seek' });
+    e.seek.addEventListener('pointerdown', () => { this.seeking = true; }); e.seek.addEventListener('pointerup', () => { this.seeking = false; });
+    e.seek.addEventListener('input', () => { const a = MP.asset(); if (a) { MP.seek(e.seek.value / 1000 * a.frames); } });
+    e.time = h('span', { class: 'mtime' }, '00:00.00 / 00:00.00');
+    const ab = h('div', { class: 'ab' }); e.ab = ab; this.renderAB();
+    e.match = h('label', { class: 'chk', title: 'Plays the original and every reference at the loudness of your mastered result, so louder never sounds better.' }, h('input', { type: 'checkbox', checked: P.master.match, onchange: ev => { P.master.match = ev.target.checked; MP.applySel(); Save.mark(); } }), ' Match loudness');
+    return h('div', { class: 'mplayer' }, h('div', { class: 'row' }, h('button', { onclick: () => { MP.seek(0); } }, '⏮'), e.play, e.seek, e.time), h('div', { class: 'row' }, ab, e.match));
+  },
+  renderAB() {
+    const ab = this.e.ab; if (!ab) return; ab.textContent = ''; const sel = MP.sel, m = P.master;
+    const b = (id, label, title) => h('button', { class: 'abb' + (sel === id ? ' on' : ''), title, onclick: () => { MP.select(id).then(() => this.renderAB()); } }, label);
+    ab.append(b('A', 'A  Original', 'The unmastered song'), b('B', 'B  Mastered', 'Your mastering chain'));
+    for (const r of m.refs) { const w = h('span', { class: 'refw' }, b(r.id, 'Ref: ' + (r.name.length > 18 ? r.name.slice(0, 17) + '…' : r.name), r.name + '\n' + fmtL(r.lufs) + ' LUFS'), h('button', { class: 'x', title: 'Remove reference', onclick: () => { Master.removeRef(r.id).then(() => this.render()); } }, '✕')); ab.append(w); }
+    ab.append(h('button', { class: 'abb', onclick: () => this.addRefs() }, '+ Reference'));
+  },
+  meters() {
+    const e = this.e, c = (k, t, big) => { e[k] = h('div', { class: 'mv' }, '—'); return h('div', { class: 'mcard' + (big ? ' wide' : '') }, h('div', { class: 'ml' }, t), e[k]); };
+    e.tpbar = h('i'); e.rbar = h('i');
+    return h('div', { class: 'mmeters' }, c('mom', 'Momentary LUFS'), c('sht', 'Short-term LUFS'), c('int', 'Integrated LUFS (since play)'),
+      h('div', { class: 'mcard' }, h('div', { class: 'ml' }, 'True peak dBTP'), (e.tp = h('div', { class: 'mv' }, '—')), h('div', { class: 'tbar' }, e.tpbar)),
+      h('div', { class: 'mcard' }, h('div', { class: 'ml' }, 'Stereo width / correlation'), (e.wd = h('div', { class: 'mv' }, '—')), h('div', { class: 'tbar' }, e.rbar)),
+      h('button', { class: 'sm', title: 'Restart the integrated reading and the peak hold', onclick: () => { if (MP.built) MP.meter.port.postMessage('reset'); this.tpMax = -120; } }, 'Reset meters'));
+  },
+  views() {
+    const e = this.e; e.spec = h('canvas', { class: 'spec', width: 760, height: 190 }); e.vec = h('canvas', { class: 'vec', width: 190, height: 190 });
+    return h('div', { class: 'mviews' }, h('div', { class: 'vwrap' }, h('div', { class: 'ml' }, 'Spectrum' + (P.master.refs.length ? ' — dashed line: reference shape' : '')), e.spec), h('div', { class: 'vwrap' }, h('div', { class: 'ml' }, 'Stereo image (mono = straight up)'), e.vec));
+  },
+  statsCard() { this.e.stats = h('div', { class: 'mstats' }); return this.e.stats; },
+  updStats() {
+    const box = this.e.stats; if (!box) return; const S = Master.stats, m = P.master; box.textContent = '';
+    const row = (n, st, extra) => h('tr', null, h('td', null, n), h('td', null, st ? fmtL(st.lufs) : '—'), h('td', null, st ? fmtL(st.tp) : '—'), h('td', null, st && st.lra != null ? st.lra.toFixed(1) : '—'), h('td', null, st ? (st.tp - st.lufs).toFixed(1) : '—'), h('td', null, st ? Math.round(st.width * 100) + '%' : '—'), h('td', { class: 'dim' }, extra || ''));
+    const dl = (a, b, w) => a && b ? (a.lufs - b.lufs >= 0 ? '+' : '') + (a.lufs - b.lufs).toFixed(1) + ' LU vs ' + w : '';
+    const ref = this.mref && this.mref();
+    if (S.src && S.src.tp > 0.05) box.append(h('div', { class: 'warnb', style: 'margin:4px 8px;display:inline-block' }, `Your original goes ${S.src.tp.toFixed(1)} dB over 0 dBFS — the limiter will squash it hard. Lower the track volumes, or turn Intensity down.`));
+    box.append(h('table', null, h('tr', null, h('th', null, 'Whole-song measurement'), h('th', { title: 'Integrated loudness' }, 'LUFS'), h('th', { title: 'True peak' }, 'Peak dBTP'), h('th', { title: 'Loudness range: how much the loudness moves' }, 'LRA'), h('th', { title: 'Peak-to-loudness: how far peaks stand above the average' }, 'PLR'), h('th', { title: 'Side energy as a share of the whole' }, 'Width'), h('th', null, this.status)),
+      row('A  Original', S.src), row('B  Mastered', S.mas, dl(S.mas, S.src, 'original') + (ref && S.mas ? ' · ' + dl(S.mas, ref, 'reference') : '')), ...m.refs.map(r => row('Ref: ' + r.name, r, ''))));
+    this.updMatchNow();
+  },
+  // ---- right column
+  frontPanel() {
+    const m = P.master, s = m.simple, e = this.e;
+    const sl = (label, key, min, max, lo, hi, fmt) => { const v = h('span', null, fmt(s[key])), r = h('input', { type: 'range', min, max, step: 1, value: s[key] });
+      r.addEventListener('input', () => { s[key] = +r.value; v.textContent = fmt(s[key]); simpleToChain(m.chain, s); this.renderAdv(); this.chainChanged(); }); r.addEventListener('dblclick', () => { r.value = key === 'tone' ? 0 : 35; r.dispatchEvent(new Event('input')); });
+      return h('div', { class: 'prm big' }, h('div', { class: 'lb' }, h('span', null, label), v), r, h('div', { class: 'lb dim' }, h('span', null, lo), h('span', null, hi))); };
+    return h('div', { class: 'mfront' }, h('h3', null, 'Quick master'),
+      h('div', { class: 'dim' }, 'Two knobs that move the real controls below. Double-click a knob to reset it.'),
+      sl('Intensity', 'intensity', 0, 100, 'Gentle', 'Loud & tight', v => v + '%'), sl('Tone', 'tone', -100, 100, 'Warmer', 'Brighter', v => (v > 0 ? '+' : '') + v),
+      h('div', { class: 'row', style: 'margin-top:10px;flex-wrap:wrap' }, h('button', { onclick: () => this.matchUI() }, '✨ Match my reference…'), h('button', { class: 'primary', onclick: () => Master.exportMastered() }, 'Export mastered WAV'), h('button', { onclick: () => { P.master.chain = MD.MasterDSP.defaults(); simpleToChain(P.master.chain, P.master.simple); this.renderAdv(); this.chainChanged(); } }, 'Reset')));
+  },
+  advPanel() { this.e.adv = h('div', { class: 'madv' }); this.renderAdv(); return this.e.adv; },
+  renderAdv() {
+    const box = this.e.adv; if (!box) return; const c = P.master.chain, self = this; box.textContent = '';
+    const sec = (title, tog, ...rows) => h('div', { class: 'fxc' + (tog && tog.o[tog.k] === false ? ' off' : '') }, h('div', { class: 'hd' }, h('b', { style: 'cursor:default' }, title), tog ? h('button', { class: 'sm' + (tog.o[tog.k] === false ? '' : ' on'), onclick: () => { tog.o[tog.k] = tog.o[tog.k] === false; self.chainChanged(); self.renderAdv(); } }, tog.o[tog.k] === false ? 'Off' : 'On') : null), ...rows);
+    const P_ = (label, o, k, min, max, step, unit, log, hint) => {
+      const fmt = v => (log || step >= 1 ? Math.round(v) : step >= 0.1 ? v.toFixed(1) : v.toFixed(2)) + (unit ? ' ' + unit : '');
+      const toPos = v => log ? Math.log(v / min) / Math.log(max / min) * 1000 : (v - min) / (max - min) * 1000, fromPos = p => { let v = log ? min * Math.pow(max / min, p / 1000) : min + p / 1000 * (max - min); if (!log) v = Math.round(v / step) * step; return clamp(v, min, max); };
+      const vt = h('span', null, fmt(o[k])), r = h('input', { type: 'range', min: 0, max: 1000, value: Math.round(toPos(o[k])) });
+      r.addEventListener('input', () => { o[k] = +fromPos(+r.value).toFixed(3); vt.textContent = fmt(o[k]); self.chainChanged(); });
+      return h('div', { class: 'prm', title: hint || '' }, h('div', { class: 'lb' }, h('span', null, label), vt), r); };
+    box.append(h('div', { class: 'fxc' }, h('div', { class: 'hd' }, h('b', { style: 'cursor:default' }, 'Whole mastering chain'), h('button', { class: 'sm' + (c.on === false ? '' : ' on'), onclick: () => { c.on = c.on === false; self.chainChanged(); self.renderAdv(); } }, c.on === false ? 'Off' : 'On')),
+      h('div', { class: 'ds' }, 'Order: low cut → EQ → bus compressor → limiter. Off = the song passes straight through.')),
+    sec('EQ', { o: c.eq, k: 'on' }, P_('Low cut', c.hp, 'f', 20, 120, 1, 'Hz', true, 'Removes inaudible rumble below this.'),
+      P_('Low shelf', c.eq.ls, 'g', -9, 9, 0.1, 'dB'), P_('Low-mid bell', c.eq.lm, 'g', -9, 9, 0.1, 'dB', false, 'Boxiness / mud around 200–500 Hz.'), P_('Low-mid freq', c.eq.lm, 'f', 150, 1000, 1, 'Hz', true),
+      P_('Presence bell', c.eq.pr, 'g', -9, 9, 0.1, 'dB', false, 'Vocal clarity and bite, 2–5 kHz.'), P_('Presence freq', c.eq.pr, 'f', 1000, 8000, 1, 'Hz', true),
+      P_('High shelf', c.eq.hs, 'g', -9, 9, 0.1, 'dB', false, 'Air and brightness.'), P_('High shelf freq', c.eq.hs, 'f', 4000, 16000, 1, 'Hz', true)),
+    sec('Stereo', null, P_('Stereo width', c, 'width', 0.5, 1.5, 0.01, '×', false, '1.00 = untouched. Lower narrows toward mono, higher widens.')),
+    sec('Bus compressor', { o: c.comp, k: 'on' }, P_('Threshold', c.comp, 'thr', -40, 0, 0.5, 'dB', false, 'Peaks above this get turned down.'), P_('Ratio', c.comp, 'ratio', 1, 8, 0.1, ':1'),
+      P_('Attack', c.comp, 'att', 1, 100, 1, 'ms', true), P_('Release', c.comp, 'rel', 30, 1000, 1, 'ms', true), P_('Knee', c.comp, 'knee', 0, 20, 0.5, 'dB'), P_('Make-up gain', c.comp, 'mk', 0, 12, 0.1, 'dB')),
+    sec('Limiter (true-peak)', { o: c.lim, k: 'on' }, P_('Drive', c.lim, 'drive', 0, 14, 0.1, 'dB', false, 'Pushes the song harder into the limiter — louder, and more squashed.'),
+      P_('Ceiling', c.lim, 'ceil', -3, -0.1, 0.1, 'dBTP', false, 'Nothing will go above this, even between samples. −1 is the usual safe value.'), P_('Release', c.lim, 'rel', 20, 500, 1, 'ms', true)),
+    h('div', { class: 'fxc' }, P_('Output level', c, 'trim', -12, 0, 0.1, 'dB', false, 'Turns the finished result down; it can never go above the limiter ceiling.')));
+  },
+  // ---- match my reference: plain-language comparison + optional, adjustable suggestions
+  matchBox() { this.e.mp = h('div', { class: 'mfront mmatch' }); this.renderMatch(); return this.e.mp; },
+  matchUI() {
+    const m = P.master; if (!m.src) return; if (!m.refs.length) { toast('Add a reference track first (+ Reference)'); return; }
+    this.mm = this.mm || {}; this.mm.open = true; if (!this.mm.refId || !m.refs.some(r => r.id === this.mm.refId)) { this.mm.refId = (m.refs.find(r => r.id === MP.sel) || m.refs[0]).id; this.mm.data = null; }
+    this.renderMatch(); this.e.mp.scrollIntoView({ block: 'nearest' });
+  },
+  mref() { return P.master.refs.find(r => r.id === (this.mm && this.mm.refId)); },
+  nowText(key) { const S = Master.stats, ref = this.mref(); if (!S.mas || !ref || !S.mas.spec) return ''; return 'With your mastering now: ' + Master.compare({ ...S.mas, lra: S.mas.lra || 0 }, { ...ref, lra: ref.lra || 0 })[key]; },
+  renderMatch() {
+    const box = this.e.mp; if (!box) return; box.textContent = ''; const mm = this.mm; if (!mm || !mm.open) { box.style.display = 'none'; return; } box.style.display = '';
+    const m = P.master, self = this, ref = this.mref(); if (!ref) { mm.open = false; box.style.display = 'none'; return; }
+    const sel = h('select', { onchange: () => { mm.refId = sel.value; mm.data = null; self.renderMatch(); } }, m.refs.map(r => h('option', { value: r.id, selected: r.id === mm.refId }, r.name)));
+    box.append(h('div', { class: 'row' }, h('h3', { style: 'flex:1;margin:0' }, 'Match my reference'), h('button', { class: 'sm', onclick: () => { mm.open = false; self.renderMatch(); } }, '✕')),
+      h('div', { class: 'dim', style: 'margin:4px 0 8px' }, 'Use a song you love as a guide to how your mix is balanced — not to copy it. Every suggestion is optional and adjustable; nothing changes until you press Apply.'),
+      h('div', { class: 'row' }, sel, h('button', { class: 'primary', onclick: () => self.runCompare() }, mm.data ? 'Compare again' : 'Compare')));
+    if (!mm.data) return; const d = mm.data; mm.nowEls = {};
+    const names = { loud: 'Loudness', bass: 'Bass', lowmid: 'Low-mids', pres: 'Vocal presence', high: 'Highs', width: 'Stereo width', dyn: 'Dynamics' };
+    for (const k of ['loud', 'bass', 'lowmid', 'pres', 'high', 'width', 'dyn']) {
+      const r = d.rows[k], fmt = v => (k === 'width' ? (+v).toFixed(2) : k === 'loud' || r.unit === 'dB' ? (v > 0 && r.unit === 'dB' && k !== 'loud' ? '+' : '') + (+v).toFixed(1) : Math.round(v)) + ' ' + r.unit, vt = h('span', null, fmt(r.val));
+      const sl = h('input', { type: 'range', min: r.min, max: r.max, step: r.step, value: r.val }); sl.addEventListener('input', () => { r.val = +sl.value; vt.textContent = fmt(r.val); });
+      mm.nowEls[k] = h('div', { class: 'dim now' }, this.nowText(k));
+      box.append(h('div', { class: 'mrow' }, h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: r.on, onchange: ev => { r.on = ev.target.checked; } }), h('b', null, names[k])),
+        h('div', { class: 'mt' }, d.text[k]), mm.nowEls[k], h('div', { class: 'prm' }, h('div', { class: 'lb' }, h('span', null, r.label + (k === 'loud' ? ' (suggested ' + fmt(r.def) + ')' : '')), vt), sl)));
+    }
+    box.append(h('div', { class: 'row', style: 'flex-wrap:wrap;margin-top:8px' }, h('button', { class: 'primary', onclick: () => self.applyMatch() }, 'Apply selected'), h('button', { onclick: () => self.resetMatch() }, 'Reset'),
+      h('button', { title: 'Re-run the quick loudness search with your current choices', onclick: () => self.reaim() }, 'Re-aim loudness')),
+      h('div', { class: 'dim', style: 'margin-top:6px' }, 'A/B stays loudness-matched, so you can judge by ear. Reset puts everything back as it was before matching.'));
+  },
+  async runCompare() {
+    const ref = this.mref(); if (!ref) return; const pr = progress('Comparing with ' + ref.name); let res;
+    try { res = await Master.matchPrep(ref, pr); } catch (e) { console.error(e); toast('Could not compare: ' + e.message, 4500); } finally { pr.close(); }
+    if (!res) return; this.mm.data = res; this.mm.base = clone(P.master.chain); this.renderMatch(); this.e.mp.scrollIntoView({ block: 'nearest' });
+  },
+  applyMatch() { const mm = this.mm; if (!mm || !mm.data) return; if (!mm.base) mm.base = clone(P.master.chain); P.master.chain = Master.chainFromRows(mm.base, mm.data.rows); this.renderAdv(); this.chainChanged(); toast('Applied — compare A and B (loudness-matched)'); },
+  resetMatch() { const mm = this.mm; if (!mm || !mm.base) { toast('Nothing to reset'); return; } P.master.chain = clone(mm.base); this.renderAdv(); this.chainChanged(); toast('Back to how it was before matching'); },
+  async reaim() {
+    const mm = this.mm; if (!mm || !mm.data) return; const pr = progress('Finding a matching loudness…'); let a;
+    try { a = await Master.aimLoudness(mm.base || P.master.chain, mm.data.rows, mm.data.ref.lufs, f => pr.set(f)); } catch (e) { console.error(e); } finally { pr.close(); }
+    if (a) { mm.data.rows.loud.val = a.drive; this.renderMatch(); toast('Limiter drive set to ' + a.drive.toFixed(1) + ' dB — press Apply'); }
+  },
+  updMatchNow() { const mm = this.mm; if (!mm || !mm.nowEls) return; for (const k in mm.nowEls) mm.nowEls[k].textContent = this.nowText(k); },
+  // ---- live drawing
+  loop() {
+    if (!this.open) { this.looping = false; return; } requestAnimationFrame(() => this.loop());
+    const e = this.e; if (!e.time || document.hidden) return;
+    const a = MP.asset(), pos = MP.pos(), fr = a ? a.frames : 0;
+    e.time.textContent = fmtTime(pos) + ' / ' + fmtTime(fr); if (!this.seeking && fr) e.seek.value = Math.round(pos / fr * 1000); this.syncPlay();
+    const b = MP.mb; if (b && MP.playing) {
+      e.mom.textContent = fmtL(b.m); e.sht.textContent = fmtL(b.s); e.int.textContent = fmtL(b.i); this.tpMax = Math.max(this.tpMax == null ? -120 : this.tpMax, b.tp);
+      e.tp.textContent = fmtL(b.tp) + '  (max ' + fmtL(this.tpMax) + ')'; e.tp.style.color = this.tpMax > -0.1 ? 'var(--rec)' : this.tpMax > -1 ? 'var(--warn)' : '';
+      e.tpbar.style.width = clamp((b.tp + 40) / 40 * 100, 0, 100) + '%'; e.wd.textContent = Math.round(b.w * 100) + '%  /  ' + b.corr.toFixed(2); e.rbar.style.width = clamp((b.corr + 1) / 2 * 100, 0, 100) + '%';
+    }
+    this.drawSpec(); this.drawVec();
+  },
+  drawSpec() {
+    const c = this.e.spec, g = c.getContext('2d'), W = c.width, H = c.height; g.fillStyle = '#0b0b0e'; g.fillRect(0, 0, W, H);
+    const X = fc => Math.log2(fc / 20) / Math.log2(1000) * W; g.strokeStyle = '#26262e'; g.fillStyle = '#6f6f80'; g.font = '11px system-ui'; g.lineWidth = 1;
+    for (const [f, t] of [[50, '50'], [100, '100'], [200, '200'], [500, '500'], [1000, '1k'], [2000, '2k'], [5000, '5k'], [10000, '10k']]) { const x = Math.round(X(f)) + .5; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H - 14); g.stroke(); g.fillText(t, x + 3, H - 3); }
+    if (!MP.built) return; const fa = this.fa || (this.fa = new Float32Array(MP.an.frequencyBinCount)); MP.an.getFloatFrequencyData(fa); const df = SR / MP.an.fftSize, live = [];
+    for (let i = 0; i < 31; i++) { const fc = MD.SPEC_FC[i]; let lo = Math.max(1, Math.ceil(fc / 1.122 / df)), hi = Math.floor(fc * 1.122 / df); if (hi < lo) hi = lo; let p = 0; for (let k = lo; k <= hi; k++) p += Math.pow(10, fa[k] / 10); live.push(10 * Math.log10(p / (hi - lo + 1) + 1e-20)); }
+    const Y = v => (H - 16) * (1 - clamp((v + 105) / 95, 0, 1)); const line = (arr, col, dash, fill) => { g.beginPath(); arr.forEach((v, i) => { const x = X(MD.SPEC_FC[i]), y = Y(v); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.strokeStyle = col; g.setLineDash(dash); g.lineWidth = 2; if (fill) { g.stroke(); g.lineTo(X(20480), H - 16); g.lineTo(X(20), H - 16); g.fillStyle = fill; g.fill(); } else g.stroke(); g.setLineDash([]); };
+    line(live, '#4cc2ff', [], 'rgba(76,194,255,.18)');
+    const ref = P.master.refs.find(r => r.id === (MP.sel !== 'A' && MP.sel !== 'B' ? MP.sel : this.cmp)) || P.master.refs[0];
+    if (ref && ref.spec && live[15] > -150) { const mean = a => a.slice(12, 25).reduce((x, y) => x + y, 0) / 13, off = mean(live) - mean(ref.spec); line(ref.spec.map(v => v + off), '#ffffff', [6, 5]); }
+  },
+  drawVec() {
+    const c = this.e.vec, g = c.getContext('2d'), W = c.width; g.fillStyle = 'rgba(11,11,14,.28)'; g.fillRect(0, 0, W, W);
+    g.strokeStyle = '#26262e'; g.beginPath(); g.moveTo(W / 2, 0); g.lineTo(W / 2, W); g.moveTo(0, W / 2); g.lineTo(W, W / 2); g.stroke();
+    if (!MP.built || !MP.playing) return; const L = this.vl || (this.vl = new Float32Array(512)), R = this.vr || (this.vr = new Float32Array(512)); MP.aL.getFloatTimeDomainData(L); MP.aR.getFloatTimeDomainData(R);
+    g.fillStyle = '#4cc2ff'; const k = W * 0.46; for (let i = 0; i < 512; i += 2) { const x = W / 2 + (L[i] - R[i]) * 0.7071 * k, y = W / 2 - (L[i] + R[i]) * 0.7071 * k; g.fillRect(x, y, 1.6, 1.6); }
+  }
+};
+
 // ---- project management, top bar, keyboard, startup -----------------------------------------
 function normalize(p) {
   p.view = Object.assign({ pps: 60, scroll: 0, vscroll: 0, ph: 0 }, p.view);
   p.settings = Object.assign({ recOffsetMs: 0 }, p.settings);
   p.ui = Object.assign({ tool: 'clip', snap: true, selTracks: [], selClips: [] }, p.ui);
-  p.tracks = p.tracks || []; p.markers = p.markers || []; p.assets = p.assets || {};
+  p.tracks = p.tracks || []; p.markers = p.markers || []; p.assets = p.assets || {}; p.mutes = p.mutes || []; p.master = normalizeMaster(p.master);
   for (const t of p.tracks) {
     t.fx = t.fx || []; t.clips = (t.clips || []).filter(c => {
       const a = p.assets[c.aid]; if (a && c.offset + c.len > a.frames) c.len = Math.max(0, a.frames - c.offset);
@@ -1808,11 +2533,11 @@ async function setProject(p) {
   UI.tool = P.ui.tool; UI.snap = P.ui.snap; UI.selTracks = new Set(P.ui.selTracks); UI.selClips = new Set(P.ui.selClips); UI.range = null; UI.selMarker = null;
   cleanSel();
   $('#projBtn').textContent = P.name; document.title = P.name + ' — Studio';
-  await Engine.fxReady; Engine.syncTracks(); buildHeaders(); updateToolBtns(); updateEmpty(); syncUndoBtns();
+  MUI.open && MUI.render(); await Engine.fxReady; Engine.syncTracks(); buildHeaders(); updateToolBtns(); updateEmpty(); syncUndoBtns();
   bs.scrollTop = P.view.vscroll || 0; syncHbar(); UI.dirty = true;
   Store.writeFile('last.json', JSON.stringify({ id: P.id }));
   Save.lastSnap = Date.now();
-  await Promise.all(Object.values(P.assets).map(a => Peaks.load(P.id, a.id, a.frames).catch(e => console.warn('peaks', e))));
+  await Promise.all(Object.values(P.assets).filter(a => !a.nopeaks).map(a => Peaks.load(P.id, a.id, a.frames).catch(e => console.warn('peaks', e))));
   UI.dirty = true;
 }
 async function newProjectUI() {
@@ -1842,6 +2567,7 @@ async function recoverUI() {
 }
 async function freeUnused() {
   await Save.now(true); const used = new Set(Object.keys(P.assets).filter(a => P.tracks.some(t => t.clips.some(c => c.aid === a))));
+  if (P.master.src) used.add(P.master.src.aid); for (const r of P.master.refs) used.add(r.aid);
   for (const ts of await Store.listSnaps(P.id)) { const s = await Store.readJSON(`projects/${P.id}/snaps/${ts}.json`); if (s) for (const t of s.tracks || []) for (const c of t.clips || []) used.add(c.aid); }
   let n = 0;
   for (const e of await Store.list(`projects/${P.id}/a`)) if (!used.has(e.name)) { await Store.remove(`projects/${P.id}/a/${e.name}`); delete P.assets[e.name]; Peaks.map.delete(e.name); n++; }
@@ -1853,12 +2579,12 @@ async function settingsUI() {
 }
 function helpUI() {
   const rows = [['Space', 'Play / pause'], ['S', 'Split at playhead'], ['Delete', 'Delete clip / highlighted section'], ['Ctrl+Z / Ctrl+Shift+Z', 'Undo / redo'], ['Ctrl+C / X / V', 'Copy / cut / paste clips'], ['Ctrl+D', 'Duplicate clip'], ['Ctrl+A', 'Select all clips'],
-    ['M', 'Add marker at playhead'], ['V / R', 'Clip tool / Range tool'], ['+ / −', 'Zoom in / out'], ['← →', 'Nudge playhead (Shift = 1 s)'], ['Home', 'Playhead to start'], ['Ctrl + wheel', 'Zoom'], ['Shift + wheel', 'Scroll sideways'], ['Drag clip edge', 'Trim'], ['Drag the dots on a clip', 'Fade in / out'], ['Drag on empty lane', 'Highlight a section'], ['Click the time', 'Type a time (mm:ss.ss) to jump']];
+    ['M', 'Add marker at playhead'], ['V / R', 'Clip tool / Range tool'], ['+ / −', 'Zoom in / out'], ['← →', 'Nudge playhead (Shift = 1 s)'], ['Home', 'Playhead to start'], ['Ctrl + wheel', 'Zoom'], ['Shift + wheel', 'Scroll sideways'], ['Drag clip edge', 'Trim'], ['Drag the dots on a clip', 'Fade in / out'], ['Drag on empty lane', 'Highlight a section'], ['Click the time', 'Type a time (mm:ss.ss) to jump'], ['Right-click a highlight', 'Mute that section (Project ▸ Mute list… to edit times)'], ['Master button (top bar)', 'Master one finished WAV, or this project\'s mix']];
   modal('Shortcuts', h('div', null, rows.map(r => h('div', { class: 'li' }, h('b', null, r[0]), h('span', { class: 'dim' }, r[1])))), [{ label: 'Close', primary: true }]);
 }
 function syncUndoBtns() { const u = $('#undo'), r = $('#redo'); if (u) { u.disabled = !H.undo.length; r.disabled = !H.redo.length; } }
 function updateToolBtns() { $('#toolClip').classList.toggle('on', UI.tool === 'clip'); $('#toolRange').classList.toggle('on', UI.tool === 'range'); $('#snap').classList.toggle('on', UI.snap); }
-async function togglePlay() { if (Engine.rec) return Engine.stopRec(); if (Engine.playing) Engine.pause(); else await Engine.play(); UI.odirty = true; }
+async function togglePlay() { if (MUI.open) return MUI.toggle(); if (Engine.rec) return Engine.stopRec(); if (Engine.playing) Engine.pause(); else await Engine.play(); UI.odirty = true; }
 
 function wireUI() {
   bs = $('#bodyScroll'); cvL = $('#lanes'); cvO = $('#over'); cvR = $('#ruler'); hbar = $('#hbar'); hbarIn = $('#hbarIn');
@@ -1888,7 +2614,7 @@ function wireUI() {
   $('#projBtn').onclick = e => { const r = e.currentTarget.getBoundingClientRect(); popMenu(r.left, r.bottom + 4, [
     { label: 'New project…', fn: newProjectUI }, { label: 'Open project…', fn: openProjectUI },
     { label: 'Rename project…', fn: async () => { const v = await askText('Rename project', P.name); if (v && v.trim()) { P.name = v.trim(); $('#projBtn').textContent = P.name; document.title = P.name + ' — Studio'; Save.mark(); } } },
-    '-', { label: 'Recover snapshot…', fn: recoverUI }, { label: 'Free unused audio', fn: freeUnused }, { label: 'Recording offset…', fn: settingsUI },
+    '-', { label: 'Recover snapshot…', fn: recoverUI }, { label: 'Mute list…', fn: muteListUI }, { label: 'Free unused audio', fn: freeUnused }, { label: 'Recording offset…', fn: settingsUI },
     '-', { label: 'Keyboard shortcuts', fn: helpUI }]); };
   $('#toStart').onclick = () => { Engine.seek(0); setScroll(0); UI.odirty = true; };
   $('#play').onclick = togglePlay;
@@ -1898,7 +2624,7 @@ function wireUI() {
   $('#zin').onclick = () => zoomAt(W / 2, 1.5); $('#zout').onclick = () => zoomAt(W / 2, 1 / 1.5); $('#zfit').onclick = () => { fitZoom(); Save.mark(); };
   $('#undo').onclick = () => H.doUndo(); $('#redo').onclick = () => H.doRedo();
   $('#add').onclick = () => Ops.addTrack(); $('#import').onclick = () => pickFiles(f => Ops.importInto(f, null));
-  $('#export').onclick = exportMix; $('#fxBtn').onclick = () => FXUI.toggle();
+  $('#export').onclick = exportMixUI; $('#masterBtn').onclick = () => MUI.open ? MUI.close() : MUI.openView(); $('#fxBtn').onclick = () => FXUI.toggle();
   const ti = $('#time');
   ti.addEventListener('focus', () => ti.select());
   ti.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { const s = parseTime(ti.value); if (s != null) { Engine.seek(s); const x = s2x(s); if (x < 0 || x > W) setScroll(s - W * 0.1 * SR / P.view.pps); } ti.blur(); } if (e.key === 'Escape') ti.blur(); });
@@ -1943,7 +2669,7 @@ function wireUI() {
   await setProject(p);
   setStatus('Saved'); requestAnimationFrame(frame);
   setInterval(memUpdate, 500); setInterval(meterUpdate, 60); setInterval(diskUpdate, 15000); diskUpdate();
-  window.__daw = { get P() { return P; }, Engine, Ops, UI, Store, H, Save, Cache, fmtTime, exportMix, exportTrackWav };
+  window.__daw = { get P() { return P; }, Engine, Ops, UI, Store, H, Save, Cache, fmtTime, exportMix, exportTrackWav, Master, MP, MUI };
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => { });
 })();
 
