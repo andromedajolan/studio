@@ -668,29 +668,34 @@ class Pitch extends AudioWorkletProcessor{
    phE=ph;wE=w}
   this.ph=phE;this.w=wE;return true}}
 registerProcessor('fx-pitch',Pitch);
-class Crackle extends AudioWorkletProcessor{
- static get parameterDescriptors(){return[{name:'density',defaultValue:20,minValue:0,maxValue:500,automationRate:'k-rate'},{name:'hiss',defaultValue:0.02,minValue:0,maxValue:1,automationRate:'k-rate'}]}
- constructor(){super();this.s=12345;this.e=[0,0];this.lp=[0,0]}
+class Crackle extends AudioWorkletProcessor{ // static & hiss whose level FOLLOWS the signal fed to input 0: at amt 0.25 hiss sits ~20 dB and pop peaks ~10 dB under it
+ static get parameterDescriptors(){return[{name:'density',defaultValue:20,minValue:0,maxValue:500,automationRate:'k-rate'},{name:'amt',defaultValue:0.25,minValue:0,maxValue:1,automationRate:'k-rate'}]}
+ constructor(){super();this.s=12345;this.e=[0,0];this.lp=[0,0];this.env=0.001;this.a=1-Math.exp(-1/(0.3*sampleRate))}
  rnd(){this.s=(Math.imul(this.s,1664525)+1013904223)>>>0;return this.s/4294967296}
- process(i,o,p){const out=o[0],d=p.density[0]/sampleRate,hs=p.hiss[0];
-  for(let n=0;n<out[0].length;n++)for(let ch=0;ch<out.length;ch++){
+ process(i,o,p){const out=o[0],x=i[0]&&i[0][0],d=p.density[0]/sampleRate,sc=Math.min(p.amt[0]/0.25,4),N=out[0].length;
+  let env=this.env;if(x){for(let n=0;n<N;n++)env+=this.a*(x[n]*x[n]-env)}this.env=env;
+  const S=Math.sqrt(Math.max(env,0.001)),hg=0.105*3.76*S*sc,pg=0.33*S*sc; // floor: static never disappears completely in silent gaps, but stays faint there
+  for(let n=0;n<N;n++)for(let ch=0;ch<out.length;ch++){
    if(this.rnd()<d)this.e[ch]=(this.rnd()*2-1)*(0.3+0.7*this.rnd());
    this.lp[ch]+=0.35*((this.rnd()*2-1)-this.lp[ch]);
-   out[ch][n]=this.e[ch]+hs*this.lp[ch]*3;this.e[ch]*=0.8}
+   out[ch][n]=this.e[ch]*pg+hg*this.lp[ch];this.e[ch]*=0.8}
   return true}}
 registerProcessor('fx-crackle',Crackle);
 class Match extends AudioWorkletProcessor{
  static get parameterDescriptors(){return[{name:'on',defaultValue:1,minValue:0,maxValue:1,automationRate:'k-rate'}]}
- constructor(){super();this.mi=0;this.mo=0;this.g=1;this.a=1-Math.exp(-1/(0.35*sampleRate));this.k=1/(1+6.2831853*90/sampleRate);this.s=new Float64Array(16)}
+ constructor(o){super();const op=(o&&o.processorOptions)||{};this.tau=op.tau||0.05;this.off=Math.pow(10,(op.offDb==null?0.3:op.offDb)/20);this.mi=0;this.mo=0;this.g=1;this.a=1-Math.exp(-1/(this.tau*sampleRate));this.k=1/(1+6.2831853*90/sampleRate);
+  this.s=new Float64Array(2*2*12)} // per signal(2) per channel(2): shelf x1,x2,y1,y2, hp stage states
  process(inp,out,par){const r=inp[0],w=inp[1],o=out[0];if(!w||!w.length){for(let c=0;c<o.length;c++)o[c].fill(0);return true}
   const N=o[0].length,nc=Math.min(2,o.length),on=par.on[0]>0.5,k=this.k,s=this.s;
+  // K-weighting-style stage 1 (high shelf, ITU BS.1770 @48k) then the 38 Hz high-pass: sub-bass counts less, presence counts more, like the ear
+  const B0=1.53512485958697,B1=-2.69169618940638,B2=1.19839281085285,A1=-1.69065929318241,A2=0.73248077421585,C1=-1.99004745483398,C2=0.99007225036621; // stage 2: 38 Hz high-pass
   for(let n=0;n<N;n++){let a=0,b=0;for(let c=0;c<nc;c++){
-   const x=r&&r[c]?r[c][n]:0,y=w[c]?w[c][n]:0,j=c*8; // two cascaded 1-pole high-passes (bass counts less, like the ear)
-   let h1=k*(s[j+1]+x-s[j]);s[j]=x;s[j+1]=h1;let h2=k*(s[j+3]+h1-s[j+2]);s[j+2]=h1;s[j+3]=h2;
-   let g1=k*(s[j+5]+y-s[j+4]);s[j+4]=y;s[j+5]=g1;let g2=k*(s[j+7]+g1-s[j+6]);s[j+6]=g1;s[j+7]=g2;
-   a+=h2*h2;b+=g2*g2}
+   for(let q=0;q<2;q++){const x=q?(w[c]?w[c][n]:0):(r&&r[c]?r[c][n]:0),j=(q*2+c)*12;
+    const y=B0*x+B1*s[j]+B2*s[j+1]-A1*s[j+2]-A2*s[j+3];s[j+1]=s[j];s[j]=x;s[j+3]=s[j+2];s[j+2]=y;
+    const h2=y-2*s[j+4]+s[j+5]-C1*s[j+6]-C2*s[j+7];s[j+5]=s[j+4];s[j+4]=y;s[j+7]=s[j+6];s[j+6]=h2;
+    if(q)b+=h2*h2;else a+=h2*h2}}
    this.mi+=this.a*(a/nc-this.mi);this.mo+=this.a*(b/nc-this.mo)}
-  let tg=1;if(on){tg=(this.mi>1e-9&&this.mo>1e-12)?Math.min(Math.max(Math.sqrt(this.mi/this.mo),0.03),12):this.g}
+  let tg=1;if(on){tg=(this.mi>1e-9&&this.mo>1e-12)?Math.min(Math.max(Math.sqrt(this.mi/this.mo)*this.off,0.03),12):this.g}
   const g0=this.g,g1=g0+(tg-g0)*0.25;this.g=g1;
   for(let c=0;c<o.length;c++){const y=w[c]||w[0],q=o[c];for(let n=0;n<N;n++){let v=y[n]*(g0+(g1-g0)*n/N),s2=v<0?-1:1,m=v*s2;if(m>0.95)m=0.95+0.05*Math.tanh((m-0.95)/0.05);q[n]=s2*m}}
   return true}}
@@ -828,10 +833,10 @@ Effects.register({
   presets: [{ name: 'Octave up', p: { semi: 12 } }, { name: 'Octave down', p: { semi: -12 } }, { name: 'Fifth harmony (blend)', p: { semi: 7, mix: 0.5 } }, { name: 'Detune / thicken', p: { semi: 0, cents: 12, mix: 0.5 } }],
   build(ctx, p) {
     const m = mixer(ctx), n = new AudioWorkletNode(ctx, 'fx-pitch', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit' });
-    m.input.connect(n); n.connect(m.wetIn); const mt = makeMatch(ctx, m.input, m.out);
-    const apply = (q, init) => { mt.set(q); setP(ctx, n.parameters.get('ratio'), Math.pow(2, (q.semi + q.cents / 100) / 12), init); setP(ctx, n.parameters.get('win'), Math.round(q.win / 1000 * ctx.sampleRate), init); m.set(q.mix, ctx, init); };
+    m.input.connect(n); n.connect(m.wetIn); const rd = ctx.createDelay(0.2); m.input.connect(rd); const mt = makeMatch(ctx, rd, m.out); // reference delayed by the shifter's latency so the level match lines up in time
+    const apply = (q, init) => { mt.set(q); rd.delayTime.value = q.win / 2000; setP(ctx, n.parameters.get('ratio'), Math.pow(2, (q.semi + q.cents / 100) / 12), init); setP(ctx, n.parameters.get('win'), Math.round(q.win / 1000 * ctx.sampleRate), init); m.set(q.mix, ctx, init); };
     apply(p, true);
-    return { input: m.input, output: mt.node, update: q => apply(q), dispose() { [...m.nodes, n, mt.node].forEach(x => x.disconnect()); } };
+    return { input: m.input, output: mt.node, update: q => apply(q), dispose() { [...m.nodes, n, rd, mt.node].forEach(x => x.disconnect()); } };
   }
 });
 
@@ -876,19 +881,19 @@ Effects.register({
   params: [
     { k: 'lo', name: 'Low cut', min: 100, max: 1500, def: 400, log: true, unit: 'Hz', hint: 'Removes the bass. Higher = thinner.' },
     { k: 'hi', name: 'High cut', min: 1500, max: 8000, def: 3200, log: true, unit: 'Hz', hint: 'Removes the sparkle. Lower = more muffled.' },
-    { k: 'squash', name: 'Squash', min: 0, max: 1, def: 0.6, step: 0.01, hint: 'Heavy compression — makes everything the same loudness.' },
+    { k: 'squash', name: 'Squash', min: 0, max: 1, def: 0.35, step: 0.01, hint: 'Compression — higher makes everything the same loudness.' },
     { k: 'grit', name: 'Grit', min: 0, max: 1, def: 0.3, step: 0.01, hint: 'Light distortion, like an overdriven speaker.' },
     { k: 'crush', name: 'Lo-fi', min: 0, max: 1, def: 0.3, step: 0.01, hint: 'Digital roughness (bit crushing).' },
-    { k: 'crackle', name: 'Crackle & hiss', min: 0, max: 1, def: 0.25, step: 0.01, hint: 'Static pops and background hiss.' },
+    { k: 'crackle', name: 'Crackle & hiss', min: 0, max: 1, def: 0.25, step: 0.01, hint: 'Static pops and background hiss. The default sits about 20–25 dB under the voice and follows its level.' },
     { k: 'wobble', name: 'Signal wobble', min: 0, max: 1, def: 0.2, step: 0.01, hint: 'Volume drifts in and out like a weak signal.' },
     { k: 'wspeed', name: 'Wobble speed', min: 0.1, max: 3, def: 0.5, step: 0.05, unit: 'Hz', hint: 'How fast the signal drifts.' },
     { k: 'mix', name: 'Mix', min: 0, max: 1, def: 1, step: 0.01, hint: '1 = fully radio. Lower blends in the original.' },
     { k: 'level', name: 'Output trim', min: -12, max: 12, def: 0, step: 0.5, unit: 'dB', hint: 'Level trim on top of the automatic loudness match.' }, AUTO_PARAM],
   presets: [
     { name: 'Old AM station', p: {} },
-    { name: 'Car radio (mild)', p: { lo: 200, hi: 5000, squash: 0.45, grit: 0.15, crush: 0.1, crackle: 0.1, wobble: 0.08, wspeed: 0.4 } },
-    { name: 'Weak signal', p: { lo: 450, hi: 2800, squash: 0.7, grit: 0.35, crush: 0.4, crackle: 0.5, wobble: 0.55, wspeed: 0.8 } },
-    { name: 'Walkie-talkie', p: { lo: 500, hi: 2500, squash: 0.9, grit: 0.6, crush: 0.6, crackle: 0.45, wobble: 0, wspeed: 0.5 } }],
+    { name: 'Car radio (mild)', p: { lo: 200, hi: 5000, squash: 0.25, grit: 0.15, crush: 0.1, crackle: 0.1, wobble: 0.08, wspeed: 0.4 } },
+    { name: 'Weak signal', p: { lo: 450, hi: 2800, squash: 0.45, grit: 0.35, crush: 0.4, crackle: 0.5, wobble: 0.55, wspeed: 0.8 } },
+    { name: 'Walkie-talkie', p: { lo: 500, hi: 2500, squash: 0.7, grit: 0.6, crush: 0.6, crackle: 0.45, wobble: 0, wspeed: 0.5 } }],
   build(ctx, p) {
     const mk = t => { const f = ctx.createBiquadFilter(); f.type = t; f.Q.value = 0.707; return f; };
     const input = ctx.createGain(), monoIn = ctx.createGain(); monoIn.channelCount = 1; monoIn.channelCountMode = 'explicit'; // radios are mono
@@ -896,24 +901,24 @@ Effects.register({
     const comp = ctx.createDynamicsCompressor(), makeup = ctx.createGain(), ws = ctx.createWaveShaper(); ws.oversample = '2x';
     const crush = new AudioWorkletNode(ctx, 'fx-crush', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], channelCount: 1, channelCountMode: 'explicit' });
     const wob = ctx.createGain(), lfo = ctx.createOscillator(), lfoG = ctx.createGain(), sum = ctx.createGain(), wet = ctx.createGain(), dry = ctx.createGain(), out = ctx.createGain(), lvl = ctx.createGain();
-    const crk = new AudioWorkletNode(ctx, 'fx-crackle', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1] }), crkG = ctx.createGain();
+    const crk = new AudioWorkletNode(ctx, 'fx-crackle', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], channelCount: 1, channelCountMode: 'explicit' }), crkG = ctx.createGain(), fin = makeLimiter(ctx, lvl);
     comp.attack.value = 0.004; comp.release.value = 0.12; comp.knee.value = 8;
     input.connect(monoIn); monoIn.connect(hp1); hp1.connect(hp2); hp2.connect(lp1); lp1.connect(lp2); lp2.connect(comp); comp.connect(makeup); makeup.connect(ws); ws.connect(crush); crush.connect(hp3); hp3.connect(lp3); lp3.connect(lp4); lp4.connect(wob); wob.connect(sum); // band-limit again after the grit, like a real speaker
     lfo.type = 'sine'; lfo.connect(lfoG); lfoG.connect(wob.gain); lfo.start(0);
-    crk.connect(crkG); crkG.connect(sum); sum.connect(wet); wet.connect(out); input.connect(dry); dry.connect(out);
+    input.connect(crk); crk.connect(crkG); crkG.connect(lvl); sum.connect(wet); wet.connect(out); input.connect(dry); dry.connect(out);
     const mt = makeMatch(ctx, input, out); mt.node.connect(lvl); let act = false;
     const apply = (q, init) => {
       mt.set(q); lastQ = q;
       setP(ctx, hp1.frequency, q.lo, init); setP(ctx, hp2.frequency, q.lo, init); setP(ctx, lp1.frequency, q.hi, init); setP(ctx, lp2.frequency, q.hi, init); setP(ctx, hp3.frequency, q.lo, init); setP(ctx, lp3.frequency, q.hi, init); setP(ctx, lp4.frequency, q.hi, init);
-      setP(ctx, comp.threshold, -12 - 30 * q.squash, init); setP(ctx, comp.ratio, 1 + 15 * q.squash, init); setP(ctx, makeup.gain, dbToG(1 + 8 * q.squash), init);
+      setP(ctx, comp.threshold, -10 - 18 * q.squash, init); setP(ctx, comp.ratio, 1 + 7 * q.squash, init); setP(ctx, makeup.gain, dbToG(1 + 5 * q.squash), init);
       ws.curve = shaperCurve(q.grit * 0.5);
       setP(ctx, crush.parameters.get('bits'), 16 - q.crush * 8, true); setP(ctx, crush.parameters.get('div'), 1 + Math.round(q.crush * 3), true);
       setP(ctx, wob.gain, 1 - q.wobble * 0.5, init); setP(ctx, lfoG.gain, q.wobble * 0.5, init); setP(ctx, lfo.frequency, q.wspeed, init);
-      setP(ctx, crk.parameters.get('density'), 4 + q.crackle * 50, true); setP(ctx, crk.parameters.get('hiss'), q.crackle * 0.05, true); setP(ctx, crkG.gain, act ? q.crackle * 0.5 : 0, init);
+      setP(ctx, crk.parameters.get('density'), 4 + q.crackle * 50, true); setP(ctx, crk.parameters.get('amt'), q.crackle, true); setP(ctx, crkG.gain, act ? 1 : 0, init);
       setP(ctx, lvl.gain, dbToG(q.level), init); setP(ctx, wet.gain, q.mix, init); setP(ctx, dry.gain, 1 - q.mix, init);
     };
     let lastQ = p; apply(p, true);
-    return { input, output: lvl, update: q => apply(q), setActive(a) { act = a; setP(ctx, crkG.gain, a ? lastQ.crackle * 0.5 : 0, false); }, dispose() { try { lfo.stop(); } catch (e) { } [mt.node, input, monoIn, hp1, hp2, lp1, lp2, hp3, lp3, lp4, comp, makeup, ws, crush, wob, lfo, lfoG, sum, wet, dry, out, lvl, crk, crkG].forEach(n => n.disconnect()); } };
+    return { input, output: fin, update: q => apply(q), setActive(a) { act = a; setP(ctx, crkG.gain, a ? 1 : 0, false); }, dispose() { try { lfo.stop(); } catch (e) { } [mt.node, input, monoIn, hp1, hp2, lp1, lp2, hp3, lp3, lp4, comp, makeup, ws, crush, wob, lfo, lfoG, sum, wet, dry, out, lvl, crk, crkG, fin].forEach(n => n.disconnect()); } };
   }
 });
 
