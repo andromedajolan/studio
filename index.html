@@ -461,16 +461,17 @@ const Engine = {
     this.stopSources();
     this.startS = Math.max(0, Math.round(s));
     this.t0 = Math.ceil((this.ctx.currentTime + 0.08) * SR) / SR;
-    this.playing = true;
+    this.playing = true; this.setFxActive(true);
     clearInterval(this.timer); this.timer = setInterval(() => this.tick(), 90); this.tick();
   },
   pause() {
     if (!this.playing) return;
     P.view.ph = Math.round(this.pos());
-    this.stopSources(); this.playing = false; clearInterval(this.timer); Save.mark();
+    this.stopSources(); this.playing = false; this.setFxActive(false); clearInterval(this.timer); Save.mark();
   },
   seek(s) { s = Math.max(0, Math.round(s)); if (this.playing) this.begin(s); else P.view.ph = s; },
   resched() { if (this.playing) { const p = this.schedPos(); this.begin(p); } },
+  setFxActive(a) { for (const nd of this.nodes.values()) for (const i of nd.fx.values()) if (i.setActive) i.setActive(a); },
   stopSources() {
     for (const st of this.cs.values()) {
       for (const s of st.srcs) { try { s.stop(); s.disconnect(); } catch (e) { } }
@@ -616,7 +617,11 @@ const Effects = {
   register(def) { this.list.push(def); this.byId[def.id] = def; },
   defaults(def) { const p = {}; for (const q of def.params) p[q.k] = q.def; return p; },
   full(fx) { const d = this.byId[fx.type]; return { ...this.defaults(d), ...fx.p }; },
-  create(ctx, fx) { const d = this.byId[fx.type]; const inst = d.build(ctx, this.full(fx)); inst.def = d; return inst; },
+  create(ctx, fx) {
+    const d = this.byId[fx.type]; const inst = d.build(ctx, this.full(fx)); inst.def = d;
+    if (inst.setActive) inst.setActive(ctx instanceof OfflineAudioContext || Engine.playing); // generators only sound while playing/rendering
+    return inst;
+  },
   tail(fx) { const d = this.byId[fx.type]; return d && d.tail ? d.tail(this.full(fx)) : 0; },
   categories: ['Tone', 'Dynamics', 'Space', 'Pitch', 'Lo-fi & Character']
 };
@@ -627,6 +632,15 @@ function wireChain(nd, insts) {
 function chainTail(tr) { let t = 0; for (const f of tr.fx || []) if (f.on !== false) t += Effects.tail(f); return Math.min(t, 15); }
 const setP = (ctx, pr, v, init) => { if (init) pr.value = v; else pr.setTargetAtTime(v, ctx.currentTime, 0.015); };
 const dbToG = d => Math.pow(10, d / 20);
+const AUTO_PARAM = { k: 'auto', name: 'Auto level match', def: '1', options: [['1', 'On — same loudness as the dry track'], ['0', 'Off']], hint: 'Keeps the effect from being louder or quieter than the original, and soft-limits peaks so nothing clips.' };
+function makeLimiter(ctx, node) { // safety soft-limiter only (no loudness change)
+  const m = makeMatch(ctx, node, node); m.node.parameters.get('on').value = 0; return m.node;
+}
+function makeMatch(ctx, ref, wet) { // loudness-matches `wet` to `ref` (slow RMS) and soft-limits it
+  const n = new AudioWorkletNode(ctx, 'fx-match', { numberOfInputs: 2, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit' });
+  ref.connect(n, 0, 0); wet.connect(n, 0, 1);
+  return { node: n, set(q) { n.parameters.get('on').value = q.auto === '0' ? 0 : 1; } };
+}
 function mixer(ctx) { // input -> dry -> out ; wetIn -> wet -> out
   const input = ctx.createGain(), out = ctx.createGain(), dry = ctx.createGain(), wet = ctx.createGain(), wetIn = ctx.createGain();
   input.connect(dry); dry.connect(out); wetIn.connect(wet); wet.connect(out);
@@ -665,6 +679,22 @@ class Crackle extends AudioWorkletProcessor{
    out[ch][n]=this.e[ch]+hs*this.lp[ch]*3;this.e[ch]*=0.8}
   return true}}
 registerProcessor('fx-crackle',Crackle);
+class Match extends AudioWorkletProcessor{
+ static get parameterDescriptors(){return[{name:'on',defaultValue:1,minValue:0,maxValue:1,automationRate:'k-rate'}]}
+ constructor(){super();this.mi=0;this.mo=0;this.g=1;this.a=1-Math.exp(-1/(0.35*sampleRate));this.k=1/(1+6.2831853*90/sampleRate);this.s=new Float64Array(16)}
+ process(inp,out,par){const r=inp[0],w=inp[1],o=out[0];if(!w||!w.length){for(let c=0;c<o.length;c++)o[c].fill(0);return true}
+  const N=o[0].length,nc=Math.min(2,o.length),on=par.on[0]>0.5,k=this.k,s=this.s;
+  for(let n=0;n<N;n++){let a=0,b=0;for(let c=0;c<nc;c++){
+   const x=r&&r[c]?r[c][n]:0,y=w[c]?w[c][n]:0,j=c*8; // two cascaded 1-pole high-passes (bass counts less, like the ear)
+   let h1=k*(s[j+1]+x-s[j]);s[j]=x;s[j+1]=h1;let h2=k*(s[j+3]+h1-s[j+2]);s[j+2]=h1;s[j+3]=h2;
+   let g1=k*(s[j+5]+y-s[j+4]);s[j+4]=y;s[j+5]=g1;let g2=k*(s[j+7]+g1-s[j+6]);s[j+6]=g1;s[j+7]=g2;
+   a+=h2*h2;b+=g2*g2}
+   this.mi+=this.a*(a/nc-this.mi);this.mo+=this.a*(b/nc-this.mo)}
+  let tg=1;if(on){tg=(this.mi>1e-9&&this.mo>1e-12)?Math.min(Math.max(Math.sqrt(this.mi/this.mo),0.03),12):this.g}
+  const g0=this.g,g1=g0+(tg-g0)*0.25;this.g=g1;
+  for(let c=0;c<o.length;c++){const y=w[c]||w[0],q=o[c];for(let n=0;n<N;n++){let v=y[n]*(g0+(g1-g0)*n/N),s2=v<0?-1:1,m=v*s2;if(m>0.95)m=0.95+0.05*Math.tanh((m-0.95)/0.05);q[n]=s2*m}}
+  return true}}
+registerProcessor('fx-match',Match);
 `;
 const fxWL = new WeakMap();
 function ensureFxWorklet(ctx) {
@@ -690,10 +720,10 @@ Effects.register({
   build(ctx, p) {
     const lo = ctx.createBiquadFilter(), lm = ctx.createBiquadFilter(), hm = ctx.createBiquadFilter(), hi = ctx.createBiquadFilter();
     lo.type = 'lowshelf'; lo.frequency.value = 100; lm.type = 'peaking'; lm.Q.value = 1; hm.type = 'peaking'; hm.Q.value = 1; hi.type = 'highshelf'; hi.frequency.value = 8000;
-    lo.connect(lm); lm.connect(hm); hm.connect(hi);
+    lo.connect(lm); lm.connect(hm); hm.connect(hi); const lim = makeLimiter(ctx, hi);
     const apply = (q, init) => { setP(ctx, lo.gain, q.low, init); setP(ctx, lm.frequency, q.lmF, init); setP(ctx, lm.gain, q.lm, init); setP(ctx, hm.frequency, q.hmF, init); setP(ctx, hm.gain, q.hm, init); setP(ctx, hi.gain, q.high, init); };
     apply(p, true);
-    return { input: lo, output: hi, update: q => apply(q), dispose() { [lo, lm, hm, hi].forEach(n => n.disconnect()); } };
+    return { input: lo, output: lim, update: q => apply(q), dispose() { [lo, lm, hm, hi, lim].forEach(n => n.disconnect()); } };
   }
 });
 Effects.register({
@@ -705,10 +735,10 @@ Effects.register({
     { k: 'q', name: 'Resonance', min: 0.3, max: 18, def: 0.7, step: 0.1, hint: 'Higher = a sharper peak at the cutoff.' }],
   presets: [{ name: 'Muffled (behind a wall)', p: { type: 'lowpass', freq: 900, q: 0.7 } }, { name: 'Thin (no bass)', p: { type: 'highpass', freq: 400, q: 0.7 } }, { name: 'Telephone', p: { type: 'bandpass', freq: 1400, q: 0.8 } }],
   build(ctx, p) {
-    const f = ctx.createBiquadFilter();
+    const f = ctx.createBiquadFilter(), lim = makeLimiter(ctx, f);
     const apply = (q, init) => { f.type = q.type; setP(ctx, f.frequency, q.freq, init); setP(ctx, f.Q, q.q, init); };
     apply(p, true);
-    return { input: f, output: f, update: q => apply(q), dispose() { f.disconnect(); } };
+    return { input: f, output: lim, update: q => apply(q), dispose() { f.disconnect(); lim.disconnect(); } };
   }
 });
 
@@ -722,13 +752,13 @@ Effects.register({
     { k: 'att', name: 'Attack', min: 0.5, max: 200, def: 10, log: true, unit: 'ms', hint: 'How quickly it reacts. Slower lets the start of each note through.' },
     { k: 'rel', name: 'Release', min: 20, max: 1000, def: 150, log: true, unit: 'ms', hint: 'How quickly it lets go after a loud part.' },
     { k: 'knee', name: 'Softness', min: 0, max: 40, def: 12, step: 1, unit: 'dB', hint: 'Higher = smoother, less noticeable squashing.' },
-    { k: 'gain', name: 'Extra gain', min: -12, max: 12, def: 0, step: 0.1, unit: 'dB', hint: 'Level trim after compression (the compressor already adds some automatic make-up gain).' }],
-  presets: [{ name: 'Gentle vocal', p: { thr: -20, ratio: 3, att: 15, rel: 150, gain: -1 } }, { name: 'Punchy drums', p: { thr: -22, ratio: 6, att: 25, rel: 90, gain: 0 } }, { name: 'Heavy squash', p: { thr: -35, ratio: 14, att: 3, rel: 120, knee: 6, gain: -3 } }],
+    { k: 'gain', name: 'Extra gain', min: -12, max: 12, def: 0, step: 0.1, unit: 'dB', hint: 'Level trim on top of the automatic loudness match.' }, AUTO_PARAM],
+  presets: [{ name: 'Gentle vocal', p: { thr: -20, ratio: 3, att: 15, rel: 150 } }, { name: 'Punchy drums', p: { thr: -22, ratio: 6, att: 25, rel: 90, gain: 0 } }, { name: 'Heavy squash', p: { thr: -35, ratio: 14, att: 3, rel: 120, knee: 6 } }],
   build(ctx, p) {
-    const c = ctx.createDynamicsCompressor(), g = ctx.createGain(); c.connect(g);
-    const apply = (q, init) => { setP(ctx, c.threshold, q.thr, init); setP(ctx, c.ratio, q.ratio, init); setP(ctx, c.attack, q.att / 1000, init); setP(ctx, c.release, q.rel / 1000, init); setP(ctx, c.knee, q.knee, init); setP(ctx, g.gain, dbToG(q.gain), init); };
+    const inp = ctx.createGain(), c = ctx.createDynamicsCompressor(), g = ctx.createGain(); inp.connect(c); const mt = makeMatch(ctx, inp, c); mt.node.connect(g);
+    const apply = (q, init) => { mt.set(q); setP(ctx, c.threshold, q.thr, init); setP(ctx, c.ratio, q.ratio, init); setP(ctx, c.attack, q.att / 1000, init); setP(ctx, c.release, q.rel / 1000, init); setP(ctx, c.knee, q.knee, init); setP(ctx, g.gain, dbToG(q.gain), init); };
     apply(p, true);
-    return { input: c, output: g, update: q => apply(q), dispose() { c.disconnect(); g.disconnect(); } };
+    return { input: inp, output: g, update: q => apply(q), dispose() { [inp, c, g, mt.node].forEach(n => n.disconnect()); } };
   }
 });
 
@@ -740,15 +770,16 @@ Effects.register({
     { k: 'time', name: 'Echo time', min: 20, max: 1500, def: 350, log: true, unit: 'ms', hint: 'Time between repeats.' },
     { k: 'fb', name: 'Repeats', min: 0, max: 0.92, def: 0.35, step: 0.01, hint: 'How many times it repeats. Higher = longer trail.' },
     { k: 'tone', name: 'Echo tone', min: 500, max: 16000, def: 5000, log: true, unit: 'Hz', hint: 'Lower = darker, more distant echoes.' },
-    { k: 'mix', name: 'Mix', min: 0, max: 1, def: 0.3, step: 0.01, hint: '0 = no echo, 1 = only echo.' }],
+    { k: 'mix', name: 'Mix', min: 0, max: 1, def: 0.3, step: 0.01, hint: '0 = no echo, 1 = only echo.' }, AUTO_PARAM],
   presets: [{ name: 'Slapback', p: { time: 110, fb: 0.1, mix: 0.25 } }, { name: 'Classic echo', p: { time: 350, fb: 0.35, mix: 0.3 } }, { name: 'Long dreamy', p: { time: 620, fb: 0.6, tone: 3000, mix: 0.35 } }],
   tail: p => p.fb > 0.001 ? Math.min(10, p.time / 1000 * (1 + Math.log(0.001) / Math.log(Math.max(0.01, p.fb)))) : p.time / 1000,
   build(ctx, p) {
     const m = mixer(ctx), d = ctx.createDelay(2), fb = ctx.createGain(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
     m.input.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(m.wetIn);
-    const apply = (q, init) => { setP(ctx, d.delayTime, q.time / 1000, init); setP(ctx, fb.gain, q.fb, init); setP(ctx, lp.frequency, q.tone, init); m.set(q.mix, ctx, init); };
+    const mt = makeMatch(ctx, m.input, m.out);
+    const apply = (q, init) => { mt.set(q); setP(ctx, d.delayTime, q.time / 1000, init); setP(ctx, fb.gain, q.fb, init); setP(ctx, lp.frequency, q.tone, init); m.set(q.mix, ctx, init); };
     apply(p, true);
-    return { input: m.input, output: m.out, update: q => apply(q), dispose() { [...m.nodes, d, fb, lp].forEach(n => n.disconnect()); } };
+    return { input: m.input, output: mt.node, update: q => apply(q), dispose() { [...m.nodes, d, fb, lp, mt.node].forEach(n => n.disconnect()); } };
   }
 });
 Effects.register({
@@ -758,7 +789,7 @@ Effects.register({
     { k: 'decay', name: 'Room size (tail)', min: 0.2, max: 8, def: 2, step: 0.1, unit: 's', hint: 'How long the sound hangs in the air. 0.5 = small room, 2–3 = hall, 6+ = cathedral.' },
     { k: 'pre', name: 'Pre-delay', min: 0, max: 200, def: 20, step: 1, unit: 'ms', hint: 'Gap before the reverb starts. A little keeps vocals clear.' },
     { k: 'damp', name: 'Darkness', min: 0, max: 1, def: 0.5, step: 0.01, hint: 'Higher = duller, softer reverb. Lower = bright and shiny.' },
-    { k: 'mix', name: 'Mix', min: 0, max: 1, def: 0.25, step: 0.01, hint: '0 = dry, 1 = only reverb.' }],
+    { k: 'mix', name: 'Mix', min: 0, max: 1, def: 0.25, step: 0.01, hint: '0 = dry, 1 = only reverb.' }, AUTO_PARAM],
   presets: [{ name: 'Small room', p: { decay: 0.6, pre: 5, damp: 0.5, mix: 0.2 } }, { name: 'Vocal hall', p: { decay: 2.2, pre: 25, damp: 0.5, mix: 0.25 } }, { name: 'Huge cathedral', p: { decay: 6.5, pre: 40, damp: 0.6, mix: 0.4 } }],
   tail: p => p.decay + p.pre / 1000,
   build(ctx, p) {
@@ -775,11 +806,12 @@ Effects.register({
       }
       return buf;
     };
+    const mt = makeMatch(ctx, m.input, m.out); mt.set(p);
     cv.normalize = true; cv.buffer = ir(p); m.set(p.mix, ctx, true);
     return {
-      input: m.input, output: m.out,
-      update(q) { m.set(q.mix, ctx); clearTimeout(timer); timer = setTimeout(() => { cv.buffer = ir(q); }, 150); },
-      dispose() { clearTimeout(timer); [...m.nodes, cv].forEach(n => n.disconnect()); }
+      input: m.input, output: mt.node,
+      update(q) { mt.set(q); m.set(q.mix, ctx); clearTimeout(timer); timer = setTimeout(() => { cv.buffer = ir(q); }, 150); },
+      dispose() { clearTimeout(timer); [...m.nodes, cv, mt.node].forEach(n => n.disconnect()); }
     };
   }
 });
@@ -792,14 +824,14 @@ Effects.register({
     { k: 'semi', name: 'Semitones', min: -12, max: 12, def: 0, step: 1, unit: 'st', hint: '+12 = one octave up, -12 = one octave down. 7 makes a fifth harmony.' },
     { k: 'cents', name: 'Fine tune', min: -100, max: 100, def: 0, step: 1, unit: 'cents', hint: '100 cents = 1 semitone.' },
     { k: 'win', name: 'Smoothness', min: 20, max: 100, def: 45, step: 1, unit: 'ms', hint: 'Longer = smoother for sustained notes, shorter = tighter timing. Adds about half this as delay.' },
-    { k: 'mix', name: 'Mix', min: 0, max: 1, def: 1, step: 0.01, hint: '1 = only shifted sound. 0.5 blends with the original for a harmony.' }],
+    { k: 'mix', name: 'Mix', min: 0, max: 1, def: 1, step: 0.01, hint: '1 = only shifted sound. 0.5 blends with the original for a harmony.' }, AUTO_PARAM],
   presets: [{ name: 'Octave up', p: { semi: 12 } }, { name: 'Octave down', p: { semi: -12 } }, { name: 'Fifth harmony (blend)', p: { semi: 7, mix: 0.5 } }, { name: 'Detune / thicken', p: { semi: 0, cents: 12, mix: 0.5 } }],
   build(ctx, p) {
     const m = mixer(ctx), n = new AudioWorkletNode(ctx, 'fx-pitch', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit' });
-    m.input.connect(n); n.connect(m.wetIn);
-    const apply = (q, init) => { setP(ctx, n.parameters.get('ratio'), Math.pow(2, (q.semi + q.cents / 100) / 12), init); setP(ctx, n.parameters.get('win'), Math.round(q.win / 1000 * ctx.sampleRate), init); m.set(q.mix, ctx, init); };
+    m.input.connect(n); n.connect(m.wetIn); const mt = makeMatch(ctx, m.input, m.out);
+    const apply = (q, init) => { mt.set(q); setP(ctx, n.parameters.get('ratio'), Math.pow(2, (q.semi + q.cents / 100) / 12), init); setP(ctx, n.parameters.get('win'), Math.round(q.win / 1000 * ctx.sampleRate), init); m.set(q.mix, ctx, init); };
     apply(p, true);
-    return { input: m.input, output: m.out, update: q => apply(q), dispose() { [...m.nodes, n].forEach(x => x.disconnect()); } };
+    return { input: m.input, output: mt.node, update: q => apply(q), dispose() { [...m.nodes, n, mt.node].forEach(x => x.disconnect()); } };
   }
 });
 
@@ -812,14 +844,14 @@ Effects.register({
     { k: 'drive', name: 'Drive', min: 0, max: 1, def: 0.4, step: 0.01, hint: 'How hard the sound is pushed into distortion.' },
     { k: 'tone', name: 'Tone', min: 500, max: 20000, def: 8000, log: true, unit: 'Hz', hint: 'Lower = darker, less fizzy.' },
     { k: 'mix', name: 'Mix', min: 0, max: 1, def: 1, step: 0.01, hint: 'Blend with the clean sound.' },
-    { k: 'level', name: 'Output level', min: -24, max: 6, def: -6, step: 0.5, unit: 'dB', hint: 'Distortion is loud — bring it back down here.' }],
-  presets: [{ name: 'Warm crunch', p: { drive: 0.2, tone: 6000, level: -3 } }, { name: 'Fuzz', p: { drive: 0.85, tone: 5000, level: -9 } }, { name: 'Parallel grit', p: { drive: 0.6, mix: 0.35, level: -6 } }],
+    { k: 'level', name: 'Output trim', min: -24, max: 6, def: 0, step: 0.5, unit: 'dB', hint: 'Level trim on top of the automatic loudness match.' }, AUTO_PARAM],
+  presets: [{ name: 'Warm crunch', p: { drive: 0.2, tone: 6000 } }, { name: 'Fuzz', p: { drive: 0.85, tone: 5000 } }, { name: 'Parallel grit', p: { drive: 0.6, mix: 0.35 } }],
   build(ctx, p) {
     const m = mixer(ctx), ws = ctx.createWaveShaper(), lp = ctx.createBiquadFilter(), og = ctx.createGain(); ws.oversample = '4x'; lp.type = 'lowpass';
-    m.input.connect(ws); ws.connect(lp); lp.connect(og); og.connect(m.wetIn);
-    const apply = (q, init) => { ws.curve = shaperCurve(q.drive); setP(ctx, lp.frequency, q.tone, init); setP(ctx, og.gain, dbToG(q.level), init); m.set(q.mix, ctx, init); };
+    m.input.connect(ws); ws.connect(lp); lp.connect(m.wetIn); const mt = makeMatch(ctx, m.input, m.out); mt.node.connect(og);
+    const apply = (q, init) => { mt.set(q); ws.curve = shaperCurve(q.drive); setP(ctx, lp.frequency, q.tone, init); setP(ctx, og.gain, dbToG(q.level), init); m.set(q.mix, ctx, init); };
     apply(p, true);
-    return { input: m.input, output: m.out, update: q => apply(q), dispose() { [...m.nodes, ws, lp, og].forEach(n => n.disconnect()); } };
+    return { input: m.input, output: og, update: q => apply(q), dispose() { [...m.nodes, ws, lp, og, mt.node].forEach(n => n.disconnect()); } };
   }
 });
 Effects.register({
@@ -828,14 +860,14 @@ Effects.register({
   params: [
     { k: 'bits', name: 'Bit depth', min: 1, max: 16, def: 8, step: 1, unit: 'bits', hint: 'Lower = rougher. 16 is clean, 8 is retro, 4 is very crunchy.' },
     { k: 'div', name: 'Sample-rate crush', min: 1, max: 40, def: 4, step: 1, unit: '×', hint: 'Higher = more aliasing and a grainy, metallic sound.' },
-    { k: 'mix', name: 'Mix', min: 0, max: 1, def: 1, step: 0.01, hint: 'Blend with the clean sound.' }],
+    { k: 'mix', name: 'Mix', min: 0, max: 1, def: 1, step: 0.01, hint: 'Blend with the clean sound.' }, AUTO_PARAM],
   presets: [{ name: 'Retro game', p: { bits: 8, div: 6, mix: 1 } }, { name: 'Light grit', p: { bits: 12, div: 2, mix: 0.6 } }, { name: 'Destroyed', p: { bits: 4, div: 18, mix: 1 } }],
   build(ctx, p) {
     const m = mixer(ctx), n = new AudioWorkletNode(ctx, 'fx-crush', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit' });
-    m.input.connect(n); n.connect(m.wetIn);
-    const apply = (q, init) => { setP(ctx, n.parameters.get('bits'), q.bits, true); setP(ctx, n.parameters.get('div'), q.div, true); m.set(q.mix, ctx, init); };
+    m.input.connect(n); n.connect(m.wetIn); const mt = makeMatch(ctx, m.input, m.out);
+    const apply = (q, init) => { mt.set(q); setP(ctx, n.parameters.get('bits'), q.bits, true); setP(ctx, n.parameters.get('div'), q.div, true); m.set(q.mix, ctx, init); };
     apply(p, true);
-    return { input: m.input, output: m.out, update: q => apply(q), dispose() { [...m.nodes, n].forEach(x => x.disconnect()); } };
+    return { input: m.input, output: mt.node, update: q => apply(q), dispose() { [...m.nodes, n, mt.node].forEach(x => x.disconnect()); } };
   }
 });
 Effects.register({
@@ -851,7 +883,7 @@ Effects.register({
     { k: 'wobble', name: 'Signal wobble', min: 0, max: 1, def: 0.2, step: 0.01, hint: 'Volume drifts in and out like a weak signal.' },
     { k: 'wspeed', name: 'Wobble speed', min: 0.1, max: 3, def: 0.5, step: 0.05, unit: 'Hz', hint: 'How fast the signal drifts.' },
     { k: 'mix', name: 'Mix', min: 0, max: 1, def: 1, step: 0.01, hint: '1 = fully radio. Lower blends in the original.' },
-    { k: 'level', name: 'Output level', min: -12, max: 12, def: 0, step: 0.5, unit: 'dB', hint: 'Overall volume of the radio sound.' }],
+    { k: 'level', name: 'Output trim', min: -12, max: 12, def: 0, step: 0.5, unit: 'dB', hint: 'Level trim on top of the automatic loudness match.' }, AUTO_PARAM],
   presets: [
     { name: 'Old AM station', p: {} },
     { name: 'Car radio (mild)', p: { lo: 200, hi: 5000, squash: 0.45, grit: 0.15, crush: 0.1, crackle: 0.1, wobble: 0.08, wspeed: 0.4 } },
@@ -868,18 +900,20 @@ Effects.register({
     comp.attack.value = 0.004; comp.release.value = 0.12; comp.knee.value = 8;
     input.connect(monoIn); monoIn.connect(hp1); hp1.connect(hp2); hp2.connect(lp1); lp1.connect(lp2); lp2.connect(comp); comp.connect(makeup); makeup.connect(ws); ws.connect(crush); crush.connect(hp3); hp3.connect(lp3); lp3.connect(lp4); lp4.connect(wob); wob.connect(sum); // band-limit again after the grit, like a real speaker
     lfo.type = 'sine'; lfo.connect(lfoG); lfoG.connect(wob.gain); lfo.start(0);
-    crk.connect(crkG); crkG.connect(sum); sum.connect(lvl); lvl.connect(wet); wet.connect(out); input.connect(dry); dry.connect(out);
+    crk.connect(crkG); crkG.connect(sum); sum.connect(wet); wet.connect(out); input.connect(dry); dry.connect(out);
+    const mt = makeMatch(ctx, input, out); mt.node.connect(lvl); let act = false;
     const apply = (q, init) => {
+      mt.set(q); lastQ = q;
       setP(ctx, hp1.frequency, q.lo, init); setP(ctx, hp2.frequency, q.lo, init); setP(ctx, lp1.frequency, q.hi, init); setP(ctx, lp2.frequency, q.hi, init); setP(ctx, hp3.frequency, q.lo, init); setP(ctx, lp3.frequency, q.hi, init); setP(ctx, lp4.frequency, q.hi, init);
       setP(ctx, comp.threshold, -12 - 30 * q.squash, init); setP(ctx, comp.ratio, 1 + 15 * q.squash, init); setP(ctx, makeup.gain, dbToG(1 + 8 * q.squash), init);
       ws.curve = shaperCurve(q.grit * 0.5);
       setP(ctx, crush.parameters.get('bits'), 16 - q.crush * 8, true); setP(ctx, crush.parameters.get('div'), 1 + Math.round(q.crush * 3), true);
       setP(ctx, wob.gain, 1 - q.wobble * 0.5, init); setP(ctx, lfoG.gain, q.wobble * 0.5, init); setP(ctx, lfo.frequency, q.wspeed, init);
-      setP(ctx, crk.parameters.get('density'), 4 + q.crackle * 50, true); setP(ctx, crk.parameters.get('hiss'), q.crackle * 0.05, true); setP(ctx, crkG.gain, q.crackle * 0.5, init);
+      setP(ctx, crk.parameters.get('density'), 4 + q.crackle * 50, true); setP(ctx, crk.parameters.get('hiss'), q.crackle * 0.05, true); setP(ctx, crkG.gain, act ? q.crackle * 0.5 : 0, init);
       setP(ctx, lvl.gain, dbToG(q.level), init); setP(ctx, wet.gain, q.mix, init); setP(ctx, dry.gain, 1 - q.mix, init);
     };
-    apply(p, true);
-    return { input, output: out, update: q => apply(q), dispose() { try { lfo.stop(); } catch (e) { } [input, monoIn, hp1, hp2, lp1, lp2, hp3, lp3, lp4, comp, makeup, ws, crush, wob, lfo, lfoG, sum, wet, dry, out, lvl, crk, crkG].forEach(n => n.disconnect()); } };
+    let lastQ = p; apply(p, true);
+    return { input, output: lvl, update: q => apply(q), setActive(a) { act = a; setP(ctx, crkG.gain, a ? lastQ.crackle * 0.5 : 0, false); }, dispose() { try { lfo.stop(); } catch (e) { } [mt.node, input, monoIn, hp1, hp2, lp1, lp2, hp3, lp3, lp4, comp, makeup, ws, crush, wob, lfo, lfoG, sum, wet, dry, out, lvl, crk, crkG].forEach(n => n.disconnect()); } };
   }
 });
 
