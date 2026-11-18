@@ -64,6 +64,23 @@ button.primary{background:var(--ac);color:#04121a;border-color:var(--ac);font-we
 #drop{position:fixed;inset:0;border:3px dashed var(--ac);background:#4cc2ff18;z-index:55;display:none;align-items:center;justify-content:center;font-size:22px;pointer-events:none}
 #empty{position:absolute;left:272px;right:0;top:30px;bottom:14px;display:flex;align-items:center;justify-content:center;color:var(--dim);pointer-events:none;text-align:center;line-height:1.7}
 .inl{position:fixed;z-index:65;background:#000;border:1px solid var(--ac);border-radius:4px;padding:1px 5px;font:inherit}
+
+#main.side{grid-template-columns:272px minmax(0,1fr) 330px}
+#side{grid-column:3;grid-row:1/4;display:none;flex-direction:column;background:var(--p1);border-left:1px solid var(--ln);min-height:0}
+#main.side #side{display:flex}#main.side #empty{right:330px}
+#side .tabs{display:flex;gap:4px;padding:8px;border-bottom:1px solid var(--ln)}#side .tabs button{flex:1}
+#side .pane{flex:1;overflow-y:auto;padding:8px;min-height:0}
+#side input[type=search]{width:100%;background:#000;border:1px solid var(--ln);border-radius:6px;padding:7px 9px;margin-bottom:6px}
+#side .chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}#side .chips button{padding:3px 8px;font-size:12px;border-radius:12px}
+.fxc{background:var(--p2);border:1px solid var(--ln);border-radius:8px;padding:9px;margin-bottom:8px}
+.fxc .hd{display:flex;align-items:center;gap:6px}.fxc .hd b{flex:1;cursor:pointer}
+.fxc .ds{color:var(--dim);font-size:12px;margin:4px 0 6px}
+.fxc button.sm{padding:2px 7px;font-size:12px}.fxc button.star.on{color:#ffd54f;background:var(--p3);border-color:#ffd54f}
+.fxc.off{opacity:.55}
+.prm{margin:7px 0 2px}.prm .lb{display:flex;justify-content:space-between;font-size:12px;color:#c9c9d6}.prm .lb span:last-child{color:var(--ac);font-family:ui-monospace,monospace}
+.prm input[type=range]{width:100%;accent-color:var(--ac);height:18px}.prm select,.fxc select{width:100%;background:#000;border:1px solid var(--ln);border-radius:6px;padding:5px;color:var(--tx)}
+.fxb{padding:1px 6px;font-size:10px;font-weight:700;color:var(--dim)}.fxb.on{color:#04121a;background:var(--ac);border-color:var(--ac)}
+.empt{color:var(--dim);padding:14px 4px;line-height:1.6}
 </style></head>
 <body>
 <div id="app">
@@ -74,7 +91,7 @@ button.primary{background:var(--ac);color:#04121a;border-color:var(--ac);font-we
   <div class="grp"><button id="toolClip" title="Clip tool (V): move, trim, fade clips">Clip</button><button id="toolRange" title="Range tool (R): highlight a section">Range</button><button id="snap" title="Snap to clip edges, markers, playhead">Snap</button></div>
   <div class="grp"><button id="zout" title="Zoom out (−)">−</button><button id="zfit" title="Fit project">Fit</button><button id="zin" title="Zoom in (+)">+</button></div>
   <div class="grp"><button id="undo" title="Undo (Ctrl+Z)">↶</button><button id="redo" title="Redo (Ctrl+Shift+Z)">↷</button></div>
-  <div class="grp"><button id="add" title="Add empty track">+ Track</button><button id="import" title="Import audio (or drop files anywhere)">Import</button><button id="export" class="primary" title="Export mix as WAV, 48 kHz / 24-bit">Export mix</button></div>
+  <div class="grp"><button id="fxBtn" title="Effects library and track effect chain">Effects</button><button id="add" title="Add empty track">+ Track</button><button id="import" title="Import audio (or drop files anywhere)">Import</button><button id="export" class="primary" title="Export mix as WAV, 48 kHz / 24-bit">Export mix</button></div>
   <div class="grp" style="margin-left:auto"><div id="meter" title="Master level"><div id="meterFill"></div></div></div>
   <div class="grp"><div id="mem"><span id="memTxt">Memory</span><div id="memBar"><div id="memFill"></div></div></div></div>
   <div class="grp"><span id="save">Saved</span></div>
@@ -85,6 +102,7 @@ button.primary{background:var(--ac);color:#04121a;border-color:var(--ac);font-we
   <div id="bodyScroll"><div id="headers"></div></div><div id="laneWrap"><div id="stick"><canvas id="lanes"></canvas><canvas id="over"></canvas></div></div>
   <div id="empty">Drop audio files anywhere to import them,<br>or use <b>Import</b> / <b>● Rec</b> above.</div>
   <div style="background:var(--p1);border-top:1px solid var(--ln)"></div><div id="hbar"><div id="hbarIn"></div></div>
+  <aside id="side"></aside>
  </div>
 </div>
 <div id="toast"></div><div id="drop">Drop audio to import</div>
@@ -402,6 +420,7 @@ const Engine = {
     this.ctx = new AudioContext({ sampleRate: SR, latencyHint: 'playback' });
     this.master = this.ctx.createGain(); this.analyser = this.ctx.createAnalyser(); this.analyser.fftSize = 1024;
     this.master.connect(this.analyser); this.analyser.connect(this.ctx.destination);
+    this.fxReady = ensureFxWorklet(this.ctx);
   },
   tAt(p) { return this.t0 + (p - this.startS) / SR; },
   schedPos() { return this.startS + Math.max(0, (this.ctx.currentTime - this.t0) * SR); },
@@ -409,10 +428,20 @@ const Engine = {
   // ---- mixer state
   syncTracks() {
     const ids = new Set(P.tracks.map(t => t.id));
-    for (const [id, n] of this.nodes) if (!ids.has(id)) { try { n.out.disconnect(); } catch (e) { } this.nodes.delete(id); }
-    for (const t of P.tracks) if (!this.nodes.has(t.id)) this.nodes.set(t.id, buildTrackGraph(this.ctx, t, this.master));
+    for (const [id, n] of this.nodes) if (!ids.has(id)) { for (const i of n.fx.values()) i.dispose(); try { n.out.disconnect(); } catch (e) { } this.nodes.delete(id); }
+    for (const t of P.tracks) if (!this.nodes.has(t.id)) { const nd = buildTrackGraph(this.ctx, t, this.master); nd.fx = new Map(); nd.sig = ''; this.nodes.set(t.id, nd); }
+    for (const t of P.tracks) this.syncFx(t, this.nodes.get(t.id));
     this.applyParams();
   },
+  syncFx(tr, nd) {
+    const want = new Set((tr.fx || []).map(f => f.id));
+    for (const [id, inst] of nd.fx) if (!want.has(id)) { inst.dispose(); nd.fx.delete(id); }
+    for (const f of tr.fx || []) if (!nd.fx.has(f.id)) { try { nd.fx.set(f.id, Effects.create(this.ctx, f)); } catch (e) { console.error('fx', e); } }
+    const live = (tr.fx || []).filter(f => nd.fx.has(f.id));
+    const sig = live.map(f => f.id + (f.on === false ? 0 : 1)).join();
+    if (nd.sig !== sig) { wireChain(nd, live.filter(f => f.on !== false).map(f => nd.fx.get(f.id))); nd.sig = sig; }
+  },
+  updateFx(tid, fx) { const nd = this.nodes.get(tid), i = nd && nd.fx.get(fx.id); if (i) i.update(Effects.full(fx)); },
   applyParams() {
     const solo = P.tracks.some(t => t.solo), now = this.ctx.currentTime;
     for (const t of P.tracks) {
@@ -574,6 +603,286 @@ const Engine = {
 };
 function isAudible(t, anySolo) { return !t.mute && (!anySolo || t.solo); }
 
+// ---- effects framework -----------------------------------------------------------------------
+// An effect is a self-contained module registered with Effects.register({...}).
+//   id, name, cat, desc            -> shown in the library
+//   params: [{k,name,min,max,def,step,unit,log,options,hint}]
+//   presets: [{name,p}]            (optional)
+//   build(ctx, p) -> {input, output, update(p), dispose()}   works for live AND offline contexts
+//   tail(p) -> seconds of ring-out after the audio ends (reverb/delay), used by export
+// Tracks hold  fx:[{id,type,on,p}]  and are wired  in -> fx1 -> fx2 ... -> vol -> pan -> out.
+const Effects = {
+  list: [], byId: {},
+  register(def) { this.list.push(def); this.byId[def.id] = def; },
+  defaults(def) { const p = {}; for (const q of def.params) p[q.k] = q.def; return p; },
+  full(fx) { const d = this.byId[fx.type]; return { ...this.defaults(d), ...fx.p }; },
+  create(ctx, fx) { const d = this.byId[fx.type]; const inst = d.build(ctx, this.full(fx)); inst.def = d; return inst; },
+  tail(fx) { const d = this.byId[fx.type]; return d && d.tail ? d.tail(this.full(fx)) : 0; },
+  categories: ['Tone', 'Dynamics', 'Space', 'Pitch', 'Lo-fi & Character']
+};
+function wireChain(nd, insts) {
+  nd.inn.disconnect(); for (const i of nd.fx ? nd.fx.values() : []) { try { i.output.disconnect(); } catch (e) { } }
+  let prev = nd.inn; for (const i of insts) { prev.connect(i.input); prev = i.output; } prev.connect(nd.vol);
+}
+function chainTail(tr) { let t = 0; for (const f of tr.fx || []) if (f.on !== false) t += Effects.tail(f); return Math.min(t, 15); }
+const setP = (ctx, pr, v, init) => { if (init) pr.value = v; else pr.setTargetAtTime(v, ctx.currentTime, 0.015); };
+const dbToG = d => Math.pow(10, d / 20);
+function mixer(ctx) { // input -> dry -> out ; wetIn -> wet -> out
+  const input = ctx.createGain(), out = ctx.createGain(), dry = ctx.createGain(), wet = ctx.createGain(), wetIn = ctx.createGain();
+  input.connect(dry); dry.connect(out); wetIn.connect(wet); wet.connect(out);
+  return { input, out, wetIn, set(mix, ctx2, init) { setP(ctx, dry.gain, 1 - mix, init); setP(ctx, wet.gain, mix, init); }, nodes: [input, out, dry, wet, wetIn] };
+}
+
+// ---- audio worklet processors shared by effects (loaded once per audio context) -------------
+const FX_WORKLET = `
+class Crush extends AudioWorkletProcessor{
+ static get parameterDescriptors(){return[{name:'bits',defaultValue:8,minValue:1,maxValue:16,automationRate:'k-rate'},{name:'div',defaultValue:1,minValue:1,maxValue:64,automationRate:'k-rate'}]}
+ constructor(){super();this.h=[0,0];this.c=0}
+ process(i,o,p){const a=i[0],b=o[0];if(!a||!a.length)return true;const lv=Math.pow(2,p.bits[0]-1),div=Math.max(1,Math.round(p.div[0]));let c0=this.c;
+  for(let ch=0;ch<b.length;ch++){const x=a[ch]||a[0],y=b[ch];let c=this.c;for(let n=0;n<y.length;n++){if(c===0)this.h[ch]=Math.round(x[n]*lv)/lv;y[n]=this.h[ch];c=(c+1)%div}c0=c}
+  this.c=c0;return true}}
+registerProcessor('fx-crush',Crush);
+class Pitch extends AudioWorkletProcessor{
+ static get parameterDescriptors(){return[{name:'ratio',defaultValue:1,minValue:0.25,maxValue:4,automationRate:'k-rate'},{name:'win',defaultValue:1920,minValue:480,maxValue:8192,automationRate:'k-rate'}]}
+ constructor(){super();this.L=16384;this.buf=[new Float32Array(this.L),new Float32Array(this.L)];this.w=0;this.ph=0}
+ rd(b,pos){const M=this.L-1,i=Math.floor(pos),f=pos-i;return b[i&M]*(1-f)+b[(i+1)&M]*f}
+ process(i,o,p){const a=i[0],b=o[0];if(!a||!a.length)return true;const r=p.ratio[0],W=p.win[0],M=this.L-1,N=b[0].length;let phE=this.ph,wE=this.w;
+  for(let ch=0;ch<b.length;ch++){const x=a[ch]||a[0],y=b[ch],buf=this.buf[ch];let ph=this.ph,w=this.w;
+   for(let n=0;n<N;n++){buf[w&M]=x[n];const p2=ph+0.5>=1?ph-0.5:ph+0.5;
+    y[n]=this.rd(buf,w-(ph*W+2))*(0.5-0.5*Math.cos(6.2831853*ph))+this.rd(buf,w-(p2*W+2))*(0.5-0.5*Math.cos(6.2831853*p2));
+    ph+=(1-r)/W;ph-=Math.floor(ph);w++}
+   phE=ph;wE=w}
+  this.ph=phE;this.w=wE;return true}}
+registerProcessor('fx-pitch',Pitch);
+class Crackle extends AudioWorkletProcessor{
+ static get parameterDescriptors(){return[{name:'density',defaultValue:20,minValue:0,maxValue:500,automationRate:'k-rate'},{name:'hiss',defaultValue:0.02,minValue:0,maxValue:1,automationRate:'k-rate'}]}
+ constructor(){super();this.s=12345;this.e=[0,0];this.lp=[0,0]}
+ rnd(){this.s=(Math.imul(this.s,1664525)+1013904223)>>>0;return this.s/4294967296}
+ process(i,o,p){const out=o[0],d=p.density[0]/sampleRate,hs=p.hiss[0];
+  for(let n=0;n<out[0].length;n++)for(let ch=0;ch<out.length;ch++){
+   if(this.rnd()<d)this.e[ch]=(this.rnd()*2-1)*(0.3+0.7*this.rnd());
+   this.lp[ch]+=0.35*((this.rnd()*2-1)-this.lp[ch]);
+   out[ch][n]=this.e[ch]+hs*this.lp[ch]*3;this.e[ch]*=0.8}
+  return true}}
+registerProcessor('fx-crackle',Crackle);
+`;
+const fxWL = new WeakMap();
+function ensureFxWorklet(ctx) {
+  let p = fxWL.get(ctx);
+  if (!p) { p = ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([FX_WORKLET], { type: 'text/javascript' }))); fxWL.set(ctx, p); }
+  return p;
+}
+
+// ---- the effect modules (each is independent; add a new one by registering another) --------
+
+// ===== Tone =====
+Effects.register({
+  id: 'eq', name: 'EQ', cat: 'Tone',
+  desc: 'Tone controls. Boost or cut the bass, the mids and the treble to make a sound warmer, thinner, clearer or darker.',
+  params: [
+    { k: 'low', name: 'Bass (100 Hz)', min: -18, max: 18, def: 0, step: 0.1, unit: 'dB', hint: 'Boost for body and warmth, cut to clean up muddiness.' },
+    { k: 'lmF', name: 'Low-mid pitch', min: 200, max: 2000, def: 500, log: true, unit: 'Hz', hint: 'Which low-mid frequency the next control affects.' },
+    { k: 'lm', name: 'Low-mid', min: -18, max: 18, def: 0, step: 0.1, unit: 'dB', hint: 'Cut around 300–500 Hz to remove boxy sound.' },
+    { k: 'hmF', name: 'High-mid pitch', min: 1000, max: 8000, def: 3000, log: true, unit: 'Hz', hint: 'Which high-mid frequency the next control affects.' },
+    { k: 'hm', name: 'High-mid', min: -18, max: 18, def: 0, step: 0.1, unit: 'dB', hint: 'Boost around 2–4 kHz for clarity and presence on vocals.' },
+    { k: 'high', name: 'Treble (8 kHz)', min: -18, max: 18, def: 0, step: 0.1, unit: 'dB', hint: 'Boost for air and sparkle, cut to soften harshness.' }],
+  presets: [{ name: 'Flat', p: {} }, { name: 'Warmer', p: { low: 3, high: -3 } }, { name: 'Brighter vocal', p: { lm: -2, hm: 3, high: 3 } }, { name: 'Thin / phone-ish', p: { low: -18, lm: -4, hm: 6, high: -6 } }],
+  build(ctx, p) {
+    const lo = ctx.createBiquadFilter(), lm = ctx.createBiquadFilter(), hm = ctx.createBiquadFilter(), hi = ctx.createBiquadFilter();
+    lo.type = 'lowshelf'; lo.frequency.value = 100; lm.type = 'peaking'; lm.Q.value = 1; hm.type = 'peaking'; hm.Q.value = 1; hi.type = 'highshelf'; hi.frequency.value = 8000;
+    lo.connect(lm); lm.connect(hm); hm.connect(hi);
+    const apply = (q, init) => { setP(ctx, lo.gain, q.low, init); setP(ctx, lm.frequency, q.lmF, init); setP(ctx, lm.gain, q.lm, init); setP(ctx, hm.frequency, q.hmF, init); setP(ctx, hm.gain, q.hm, init); setP(ctx, hi.gain, q.high, init); };
+    apply(p, true);
+    return { input: lo, output: hi, update: q => apply(q), dispose() { [lo, lm, hm, hi].forEach(n => n.disconnect()); } };
+  }
+});
+Effects.register({
+  id: 'filter', name: 'Filter', cat: 'Tone',
+  desc: 'Removes part of the sound. Low-pass cuts the highs (muffled), high-pass cuts the lows (thin), band-pass keeps only a slice.',
+  params: [
+    { k: 'type', name: 'Type', def: 'lowpass', options: [['lowpass', 'Low-pass (cut highs)'], ['highpass', 'High-pass (cut lows)'], ['bandpass', 'Band-pass (keep a slice)']] },
+    { k: 'freq', name: 'Cutoff', min: 20, max: 20000, def: 2000, log: true, unit: 'Hz', hint: 'Where the cut starts.' },
+    { k: 'q', name: 'Resonance', min: 0.3, max: 18, def: 0.7, step: 0.1, hint: 'Higher = a sharper peak at the cutoff.' }],
+  presets: [{ name: 'Muffled (behind a wall)', p: { type: 'lowpass', freq: 900, q: 0.7 } }, { name: 'Thin (no bass)', p: { type: 'highpass', freq: 400, q: 0.7 } }, { name: 'Telephone', p: { type: 'bandpass', freq: 1400, q: 0.8 } }],
+  build(ctx, p) {
+    const f = ctx.createBiquadFilter();
+    const apply = (q, init) => { f.type = q.type; setP(ctx, f.frequency, q.freq, init); setP(ctx, f.Q, q.q, init); };
+    apply(p, true);
+    return { input: f, output: f, update: q => apply(q), dispose() { f.disconnect(); } };
+  }
+});
+
+// ===== Dynamics =====
+Effects.register({
+  id: 'comp', name: 'Compressor', cat: 'Dynamics',
+  desc: 'Evens out volume. Loud parts get turned down so the quiet parts can be heard — makes vocals and drums steadier and punchier.',
+  params: [
+    { k: 'thr', name: 'Threshold', min: -60, max: 0, def: -24, step: 1, unit: 'dB', hint: 'Sound louder than this gets turned down.' },
+    { k: 'ratio', name: 'Ratio', min: 1, max: 20, def: 4, step: 0.1, unit: ':1', hint: 'How hard loud parts get squashed. 2–4 is gentle, 10+ is heavy.' },
+    { k: 'att', name: 'Attack', min: 0.5, max: 200, def: 10, log: true, unit: 'ms', hint: 'How quickly it reacts. Slower lets the start of each note through.' },
+    { k: 'rel', name: 'Release', min: 20, max: 1000, def: 150, log: true, unit: 'ms', hint: 'How quickly it lets go after a loud part.' },
+    { k: 'knee', name: 'Softness', min: 0, max: 40, def: 12, step: 1, unit: 'dB', hint: 'Higher = smoother, less noticeable squashing.' },
+    { k: 'gain', name: 'Extra gain', min: -12, max: 12, def: 0, step: 0.1, unit: 'dB', hint: 'Level trim after compression (the compressor already adds some automatic make-up gain).' }],
+  presets: [{ name: 'Gentle vocal', p: { thr: -20, ratio: 3, att: 15, rel: 150, gain: -1 } }, { name: 'Punchy drums', p: { thr: -22, ratio: 6, att: 25, rel: 90, gain: 0 } }, { name: 'Heavy squash', p: { thr: -35, ratio: 14, att: 3, rel: 120, knee: 6, gain: -3 } }],
+  build(ctx, p) {
+    const c = ctx.createDynamicsCompressor(), g = ctx.createGain(); c.connect(g);
+    const apply = (q, init) => { setP(ctx, c.threshold, q.thr, init); setP(ctx, c.ratio, q.ratio, init); setP(ctx, c.attack, q.att / 1000, init); setP(ctx, c.release, q.rel / 1000, init); setP(ctx, c.knee, q.knee, init); setP(ctx, g.gain, dbToG(q.gain), init); };
+    apply(p, true);
+    return { input: c, output: g, update: q => apply(q), dispose() { c.disconnect(); g.disconnect(); } };
+  }
+});
+
+// ===== Space =====
+Effects.register({
+  id: 'delay', name: 'Delay', cat: 'Space',
+  desc: 'An echo. The sound repeats after a short time and fades away — from a quick slapback to long spacey repeats.',
+  params: [
+    { k: 'time', name: 'Echo time', min: 20, max: 1500, def: 350, log: true, unit: 'ms', hint: 'Time between repeats.' },
+    { k: 'fb', name: 'Repeats', min: 0, max: 0.92, def: 0.35, step: 0.01, hint: 'How many times it repeats. Higher = longer trail.' },
+    { k: 'tone', name: 'Echo tone', min: 500, max: 16000, def: 5000, log: true, unit: 'Hz', hint: 'Lower = darker, more distant echoes.' },
+    { k: 'mix', name: 'Mix', min: 0, max: 1, def: 0.3, step: 0.01, hint: '0 = no echo, 1 = only echo.' }],
+  presets: [{ name: 'Slapback', p: { time: 110, fb: 0.1, mix: 0.25 } }, { name: 'Classic echo', p: { time: 350, fb: 0.35, mix: 0.3 } }, { name: 'Long dreamy', p: { time: 620, fb: 0.6, tone: 3000, mix: 0.35 } }],
+  tail: p => p.fb > 0.001 ? Math.min(10, p.time / 1000 * (1 + Math.log(0.001) / Math.log(Math.max(0.01, p.fb)))) : p.time / 1000,
+  build(ctx, p) {
+    const m = mixer(ctx), d = ctx.createDelay(2), fb = ctx.createGain(), lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
+    m.input.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); lp.connect(m.wetIn);
+    const apply = (q, init) => { setP(ctx, d.delayTime, q.time / 1000, init); setP(ctx, fb.gain, q.fb, init); setP(ctx, lp.frequency, q.tone, init); m.set(q.mix, ctx, init); };
+    apply(p, true);
+    return { input: m.input, output: m.out, update: q => apply(q), dispose() { [...m.nodes, d, fb, lp].forEach(n => n.disconnect()); } };
+  }
+});
+Effects.register({
+  id: 'reverb', name: 'Reverb', cat: 'Space',
+  desc: 'Makes the sound feel like it is in a room, hall or cave. Adds space and depth behind a dry recording.',
+  params: [
+    { k: 'decay', name: 'Room size (tail)', min: 0.2, max: 8, def: 2, step: 0.1, unit: 's', hint: 'How long the sound hangs in the air. 0.5 = small room, 2–3 = hall, 6+ = cathedral.' },
+    { k: 'pre', name: 'Pre-delay', min: 0, max: 200, def: 20, step: 1, unit: 'ms', hint: 'Gap before the reverb starts. A little keeps vocals clear.' },
+    { k: 'damp', name: 'Darkness', min: 0, max: 1, def: 0.5, step: 0.01, hint: 'Higher = duller, softer reverb. Lower = bright and shiny.' },
+    { k: 'mix', name: 'Mix', min: 0, max: 1, def: 0.25, step: 0.01, hint: '0 = dry, 1 = only reverb.' }],
+  presets: [{ name: 'Small room', p: { decay: 0.6, pre: 5, damp: 0.5, mix: 0.2 } }, { name: 'Vocal hall', p: { decay: 2.2, pre: 25, damp: 0.5, mix: 0.25 } }, { name: 'Huge cathedral', p: { decay: 6.5, pre: 40, damp: 0.6, mix: 0.4 } }],
+  tail: p => p.decay + p.pre / 1000,
+  build(ctx, p) {
+    const m = mixer(ctx), cv = ctx.createConvolver(); m.input.connect(cv); cv.connect(m.wetIn); let timer = null;
+    const ir = q => {
+      const rate = ctx.sampleRate, pre = Math.round(q.pre / 1000 * rate), len = pre + Math.round(q.decay * rate), buf = ctx.createBuffer(2, len, rate);
+      for (let ch = 0; ch < 2; ch++) {
+        const d = buf.getChannelData(ch); let s = 0x9e3779b9 + ch * 7919, lp = 0;
+        for (let i = pre; i < len; i++) {
+          s = (Math.imul(s, 1664525) + 1013904223) >>> 0; const n = s / 2147483648 - 1, t = (i - pre) / rate;
+          const a = 0.05 + (1 - 0.05) * Math.exp(-t * 1.2) * (1 - q.damp * 0.9) + 0.02; // darker over time
+          lp += Math.min(1, a * 1.5) * (n - lp); d[i] = lp * Math.exp(-6.9078 * t / q.decay);
+        }
+      }
+      return buf;
+    };
+    cv.normalize = true; cv.buffer = ir(p); m.set(p.mix, ctx, true);
+    return {
+      input: m.input, output: m.out,
+      update(q) { m.set(q.mix, ctx); clearTimeout(timer); timer = setTimeout(() => { cv.buffer = ir(q); }, 150); },
+      dispose() { clearTimeout(timer); [...m.nodes, cv].forEach(n => n.disconnect()); }
+    };
+  }
+});
+
+// ===== Pitch =====
+Effects.register({
+  id: 'pitch', name: 'Pitch Shift', cat: 'Pitch',
+  desc: 'Moves the pitch up or down without changing the speed. Use it to change a key, add a harmony (turn Mix down to ~0.5), or make a voice deeper or higher.',
+  params: [
+    { k: 'semi', name: 'Semitones', min: -12, max: 12, def: 0, step: 1, unit: 'st', hint: '+12 = one octave up, -12 = one octave down. 7 makes a fifth harmony.' },
+    { k: 'cents', name: 'Fine tune', min: -100, max: 100, def: 0, step: 1, unit: 'cents', hint: '100 cents = 1 semitone.' },
+    { k: 'win', name: 'Smoothness', min: 20, max: 100, def: 45, step: 1, unit: 'ms', hint: 'Longer = smoother for sustained notes, shorter = tighter timing. Adds about half this as delay.' },
+    { k: 'mix', name: 'Mix', min: 0, max: 1, def: 1, step: 0.01, hint: '1 = only shifted sound. 0.5 blends with the original for a harmony.' }],
+  presets: [{ name: 'Octave up', p: { semi: 12 } }, { name: 'Octave down', p: { semi: -12 } }, { name: 'Fifth harmony (blend)', p: { semi: 7, mix: 0.5 } }, { name: 'Detune / thicken', p: { semi: 0, cents: 12, mix: 0.5 } }],
+  build(ctx, p) {
+    const m = mixer(ctx), n = new AudioWorkletNode(ctx, 'fx-pitch', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit' });
+    m.input.connect(n); n.connect(m.wetIn);
+    const apply = (q, init) => { setP(ctx, n.parameters.get('ratio'), Math.pow(2, (q.semi + q.cents / 100) / 12), init); setP(ctx, n.parameters.get('win'), Math.round(q.win / 1000 * ctx.sampleRate), init); m.set(q.mix, ctx, init); };
+    apply(p, true);
+    return { input: m.input, output: m.out, update: q => apply(q), dispose() { [...m.nodes, n].forEach(x => x.disconnect()); } };
+  }
+});
+
+// ===== Lo-fi & Character =====
+function shaperCurve(drive) { const k = 1 + drive * 40, n = 2049, c = new Float32Array(n), t = Math.tanh(k); for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = Math.tanh(k * x) / t; } return c; }
+Effects.register({
+  id: 'dist', name: 'Distortion', cat: 'Lo-fi & Character',
+  desc: 'Adds grit and edge, from a warm crunch to a heavy fuzz. Good on bass, guitars and vocals that need aggression.',
+  params: [
+    { k: 'drive', name: 'Drive', min: 0, max: 1, def: 0.4, step: 0.01, hint: 'How hard the sound is pushed into distortion.' },
+    { k: 'tone', name: 'Tone', min: 500, max: 20000, def: 8000, log: true, unit: 'Hz', hint: 'Lower = darker, less fizzy.' },
+    { k: 'mix', name: 'Mix', min: 0, max: 1, def: 1, step: 0.01, hint: 'Blend with the clean sound.' },
+    { k: 'level', name: 'Output level', min: -24, max: 6, def: -6, step: 0.5, unit: 'dB', hint: 'Distortion is loud — bring it back down here.' }],
+  presets: [{ name: 'Warm crunch', p: { drive: 0.2, tone: 6000, level: -3 } }, { name: 'Fuzz', p: { drive: 0.85, tone: 5000, level: -9 } }, { name: 'Parallel grit', p: { drive: 0.6, mix: 0.35, level: -6 } }],
+  build(ctx, p) {
+    const m = mixer(ctx), ws = ctx.createWaveShaper(), lp = ctx.createBiquadFilter(), og = ctx.createGain(); ws.oversample = '4x'; lp.type = 'lowpass';
+    m.input.connect(ws); ws.connect(lp); lp.connect(og); og.connect(m.wetIn);
+    const apply = (q, init) => { ws.curve = shaperCurve(q.drive); setP(ctx, lp.frequency, q.tone, init); setP(ctx, og.gain, dbToG(q.level), init); m.set(q.mix, ctx, init); };
+    apply(p, true);
+    return { input: m.input, output: m.out, update: q => apply(q), dispose() { [...m.nodes, ws, lp, og].forEach(n => n.disconnect()); } };
+  }
+});
+Effects.register({
+  id: 'crush', name: 'Bit Crusher', cat: 'Lo-fi & Character',
+  desc: 'Makes audio sound like an old video game or cheap digital gear by throwing away detail. Crunchy, fizzy and retro.',
+  params: [
+    { k: 'bits', name: 'Bit depth', min: 1, max: 16, def: 8, step: 1, unit: 'bits', hint: 'Lower = rougher. 16 is clean, 8 is retro, 4 is very crunchy.' },
+    { k: 'div', name: 'Sample-rate crush', min: 1, max: 40, def: 4, step: 1, unit: '×', hint: 'Higher = more aliasing and a grainy, metallic sound.' },
+    { k: 'mix', name: 'Mix', min: 0, max: 1, def: 1, step: 0.01, hint: 'Blend with the clean sound.' }],
+  presets: [{ name: 'Retro game', p: { bits: 8, div: 6, mix: 1 } }, { name: 'Light grit', p: { bits: 12, div: 2, mix: 0.6 } }, { name: 'Destroyed', p: { bits: 4, div: 18, mix: 1 } }],
+  build(ctx, p) {
+    const m = mixer(ctx), n = new AudioWorkletNode(ctx, 'fx-crush', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2], channelCount: 2, channelCountMode: 'explicit' });
+    m.input.connect(n); n.connect(m.wetIn);
+    const apply = (q, init) => { setP(ctx, n.parameters.get('bits'), q.bits, true); setP(ctx, n.parameters.get('div'), q.div, true); m.set(q.mix, ctx, init); };
+    apply(p, true);
+    return { input: m.input, output: m.out, update: q => apply(q), dispose() { [...m.nodes, n].forEach(x => x.disconnect()); } };
+  }
+});
+Effects.register({
+  id: 'amradio', name: 'AM Radio', cat: 'Lo-fi & Character',
+  desc: 'Makes any track sound like it is coming out of a small old AM radio: thin, squashed, gritty, with crackle and a drifting signal. Pick a preset, then tweak.',
+  params: [
+    { k: 'lo', name: 'Low cut', min: 100, max: 1500, def: 400, log: true, unit: 'Hz', hint: 'Removes the bass. Higher = thinner.' },
+    { k: 'hi', name: 'High cut', min: 1500, max: 8000, def: 3200, log: true, unit: 'Hz', hint: 'Removes the sparkle. Lower = more muffled.' },
+    { k: 'squash', name: 'Squash', min: 0, max: 1, def: 0.6, step: 0.01, hint: 'Heavy compression — makes everything the same loudness.' },
+    { k: 'grit', name: 'Grit', min: 0, max: 1, def: 0.3, step: 0.01, hint: 'Light distortion, like an overdriven speaker.' },
+    { k: 'crush', name: 'Lo-fi', min: 0, max: 1, def: 0.3, step: 0.01, hint: 'Digital roughness (bit crushing).' },
+    { k: 'crackle', name: 'Crackle & hiss', min: 0, max: 1, def: 0.25, step: 0.01, hint: 'Static pops and background hiss.' },
+    { k: 'wobble', name: 'Signal wobble', min: 0, max: 1, def: 0.2, step: 0.01, hint: 'Volume drifts in and out like a weak signal.' },
+    { k: 'wspeed', name: 'Wobble speed', min: 0.1, max: 3, def: 0.5, step: 0.05, unit: 'Hz', hint: 'How fast the signal drifts.' },
+    { k: 'mix', name: 'Mix', min: 0, max: 1, def: 1, step: 0.01, hint: '1 = fully radio. Lower blends in the original.' },
+    { k: 'level', name: 'Output level', min: -12, max: 12, def: 0, step: 0.5, unit: 'dB', hint: 'Overall volume of the radio sound.' }],
+  presets: [
+    { name: 'Old AM station', p: {} },
+    { name: 'Car radio (mild)', p: { lo: 200, hi: 5000, squash: 0.45, grit: 0.15, crush: 0.1, crackle: 0.1, wobble: 0.08, wspeed: 0.4 } },
+    { name: 'Weak signal', p: { lo: 450, hi: 2800, squash: 0.7, grit: 0.35, crush: 0.4, crackle: 0.5, wobble: 0.55, wspeed: 0.8 } },
+    { name: 'Walkie-talkie', p: { lo: 500, hi: 2500, squash: 0.9, grit: 0.6, crush: 0.6, crackle: 0.45, wobble: 0, wspeed: 0.5 } }],
+  build(ctx, p) {
+    const mk = t => { const f = ctx.createBiquadFilter(); f.type = t; f.Q.value = 0.707; return f; };
+    const input = ctx.createGain(), monoIn = ctx.createGain(); monoIn.channelCount = 1; monoIn.channelCountMode = 'explicit'; // radios are mono
+    const hp1 = mk('highpass'), hp2 = mk('highpass'), lp1 = mk('lowpass'), lp2 = mk('lowpass'), hp3 = mk('highpass'), lp3 = mk('lowpass'), lp4 = mk('lowpass');
+    const comp = ctx.createDynamicsCompressor(), makeup = ctx.createGain(), ws = ctx.createWaveShaper(); ws.oversample = '2x';
+    const crush = new AudioWorkletNode(ctx, 'fx-crush', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], channelCount: 1, channelCountMode: 'explicit' });
+    const wob = ctx.createGain(), lfo = ctx.createOscillator(), lfoG = ctx.createGain(), sum = ctx.createGain(), wet = ctx.createGain(), dry = ctx.createGain(), out = ctx.createGain(), lvl = ctx.createGain();
+    const crk = new AudioWorkletNode(ctx, 'fx-crackle', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [1] }), crkG = ctx.createGain();
+    comp.attack.value = 0.004; comp.release.value = 0.12; comp.knee.value = 8;
+    input.connect(monoIn); monoIn.connect(hp1); hp1.connect(hp2); hp2.connect(lp1); lp1.connect(lp2); lp2.connect(comp); comp.connect(makeup); makeup.connect(ws); ws.connect(crush); crush.connect(hp3); hp3.connect(lp3); lp3.connect(lp4); lp4.connect(wob); wob.connect(sum); // band-limit again after the grit, like a real speaker
+    lfo.type = 'sine'; lfo.connect(lfoG); lfoG.connect(wob.gain); lfo.start(0);
+    crk.connect(crkG); crkG.connect(sum); sum.connect(lvl); lvl.connect(wet); wet.connect(out); input.connect(dry); dry.connect(out);
+    const apply = (q, init) => {
+      setP(ctx, hp1.frequency, q.lo, init); setP(ctx, hp2.frequency, q.lo, init); setP(ctx, lp1.frequency, q.hi, init); setP(ctx, lp2.frequency, q.hi, init); setP(ctx, hp3.frequency, q.lo, init); setP(ctx, lp3.frequency, q.hi, init); setP(ctx, lp4.frequency, q.hi, init);
+      setP(ctx, comp.threshold, -12 - 30 * q.squash, init); setP(ctx, comp.ratio, 1 + 15 * q.squash, init); setP(ctx, makeup.gain, dbToG(1 + 8 * q.squash), init);
+      ws.curve = shaperCurve(q.grit * 0.5);
+      setP(ctx, crush.parameters.get('bits'), 16 - q.crush * 8, true); setP(ctx, crush.parameters.get('div'), 1 + Math.round(q.crush * 3), true);
+      setP(ctx, wob.gain, 1 - q.wobble * 0.5, init); setP(ctx, lfoG.gain, q.wobble * 0.5, init); setP(ctx, lfo.frequency, q.wspeed, init);
+      setP(ctx, crk.parameters.get('density'), 4 + q.crackle * 50, true); setP(ctx, crk.parameters.get('hiss'), q.crackle * 0.05, true); setP(ctx, crkG.gain, q.crackle * 0.5, init);
+      setP(ctx, lvl.gain, dbToG(q.level), init); setP(ctx, wet.gain, q.mix, init); setP(ctx, dry.gain, 1 - q.mix, init);
+    };
+    apply(p, true);
+    return { input, output: out, update: q => apply(q), dispose() { try { lfo.stop(); } catch (e) { } [input, monoIn, hp1, hp2, lp1, lp2, hp3, lp3, lp4, comp, makeup, ws, crush, wob, lfo, lfoG, sum, wet, dry, out, lvl, crk, crkG].forEach(n => n.disconnect()); } };
+  }
+});
+
 // ---- project model, history, edit operations ----------------------------------------
 let P = null; // current project (plain JSON)
 const TRACK_COLORS = ['#ef5350', '#ff7043', '#ffa726', '#ffd54f', '#9ccc65', '#26a69a', '#29b6f6', '#5c6bc0', '#ab47bc', '#ec407a'];
@@ -612,7 +921,7 @@ function afterEdit(o = {}) {
   Engine.syncTracks();
   if (o.structure) Engine.resched();
   if (o.headers) buildHeaders();
-  Save.mark(); UI.dirty = true; updateEmpty();
+  Save.mark(); UI.dirty = true; updateEmpty(); FXUI.refresh();
 }
 
 const Ops = {
@@ -717,6 +1026,88 @@ const Ops = {
   }
 };
 
+// ---- Stage 2 operations: effect chain edits, noise/static generator, loop & trim ------------------
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const NOISE_TYPES = [['white', 'White noise'], ['pink', 'Pink noise (softer, more natural)'], ['brown', 'Brown noise (deep rumble)'], ['static', 'Radio static'], ['vinyl', 'Vinyl crackle'], ['hum', 'Electrical hum (60 Hz)']];
+function noiseGen(type) { // returns fill(out interleaved, nFrames, frame0); generated 10 s at a time, never all at once
+  const R = [mulberry(11), mulberry(22)], S = [0, 1].map(() => ({ b: [0, 0, 0, 0, 0, 0, 0], last: 0, env: 0.6, tgt: 0.6, cnt: 0, e: 0, lp: 0 }));
+  return (out, n, f0) => {
+    for (let i = 0; i < n; i++) for (let ch = 0; ch < 2; ch++) {
+      const r = R[ch], s = S[ch], w = r() * 2 - 1; let v = 0;
+      if (type === 'white') v = w * 0.7;
+      else if (type === 'pink') { const b = s.b; b[0] = 0.99886 * b[0] + w * 0.0555179; b[1] = 0.99332 * b[1] + w * 0.0750759; b[2] = 0.969 * b[2] + w * 0.153852; b[3] = 0.8665 * b[3] + w * 0.3104856; b[4] = 0.55 * b[4] + w * 0.5329522; b[5] = -0.7616 * b[5] - w * 0.016898; v = (b[0] + b[1] + b[2] + b[3] + b[4] + b[5] + b[6] + w * 0.5362) * 0.18; b[6] = w * 0.115926; }
+      else if (type === 'brown') { s.last = (s.last + 0.02 * w) / 1.02; v = s.last * 3.5; }
+      else if (type === 'static') { if (s.cnt-- <= 0) { s.cnt = 2400; s.tgt = 0.15 + 0.85 * r() * r(); if (r() < 0.08) s.tgt = 1.4; } s.env += (s.tgt - s.env) * 0.002; v = w * s.env * 0.5; }
+      else if (type === 'vinyl') { if (r() < 25 / SR) s.e = (r() * 2 - 1) * (0.3 + 0.7 * r()); s.lp += 0.3 * (w - s.lp); v = s.e + s.lp * 0.06; s.e *= 0.8; }
+      else if (type === 'hum') { const t = (f0 + i) / SR; v = 0.5 * Math.sin(6.2831853 * 60 * t) + 0.22 * Math.sin(6.2831853 * 120 * t) + 0.1 * Math.sin(6.2831853 * 180 * t) + 0.01 * w; }
+      out[2 * i + ch] = v;
+    }
+  };
+}
+Object.assign(Ops, {
+  addFx(tids, type) {
+    const def = Effects.byId[type]; if (!def) return; H.push(); let n = 0;
+    for (const id of tids) { const t = trackOf(id); if (t) { t.fx.push({ id: uid('f'), type, on: true, p: Effects.defaults(def) }); FXUI.expanded.add(t.fx[t.fx.length - 1].id); n++; } }
+    afterEdit({ headers: true }); return n;
+  },
+  removeFx(tid, fid) { const t = trackOf(tid); if (!t) return; H.push(); t.fx = t.fx.filter(f => f.id !== fid); afterEdit({ headers: true }); },
+  moveFx(tid, fid, dir) { const t = trackOf(tid); if (!t) return; const i = t.fx.findIndex(f => f.id === fid), j = i + dir; if (i < 0 || j < 0 || j >= t.fx.length) return; H.push(); [t.fx[i], t.fx[j]] = [t.fx[j], t.fx[i]]; afterEdit(); },
+  toggleFx(tid, fid) { const t = trackOf(tid), f = t && t.fx.find(f => f.id === fid); if (!f) return; H.push(); f.on = f.on === false; afterEdit(); },
+  applyPreset(tid, fid, pre) { const t = trackOf(tid), f = t && t.fx.find(f => f.id === fid); if (!f) return; H.push(); f.p = { ...Effects.defaults(Effects.byId[f.type]), ...pre.p }; Engine.updateFx(tid, f); afterEdit(); },
+  resetFx(tid, fid) { const t = trackOf(tid), f = t && t.fx.find(f => f.id === fid); if (!f) return; H.push(); f.p = Effects.defaults(Effects.byId[f.type]); Engine.updateFx(tid, f); afterEdit(); },
+
+  async addNoiseTrack({ type, secs, db }) {
+    const frames = Math.round(secs * SR), aid = uid('a'), gen = noiseGen(type), g = dbToG(db), nch = Math.ceil(frames / CHUNK), pr = progress('Creating noise track');
+    try {
+      for (let n = 0; n < nch; n++) {
+        const len = Math.min(CHUNK, frames - n * CHUNK), f = new Float32Array(len * 2); gen(f, len, n * CHUNK);
+        for (let i = 0; i < f.length; i++) f[i] = clamp(f[i] * g, -1, 1);
+        await Store.writeChunk(P.id, aid, n, f); Peaks.setPart(aid, n, Peaks.chunkPeaks(f)); pr.set((n + 1) / nch);
+      }
+      await Peaks.persist(P.id, aid);
+    } finally { pr.close(); }
+    const name = NOISE_TYPES.find(t => t[0] === type)[1].replace(/ \(.*/, '');
+    H.push(); P.assets[aid] = { id: aid, name, frames };
+    const tr = newTrack(name), c = newClip(aid, P.view.ph, 0, frames, name); tr.clips.push(c); tr.vol = 0.6; P.tracks.push(tr);
+    UI.selTracks = new Set([tr.id]); UI.selClips = new Set([c.id]); afterEdit({ structure: true, headers: true });
+    toast('Noise track added — right-click the clip → "Loop to length…" to make it longer, and fade it with the corner dots.', 6000);
+    await Save.now(true);
+  },
+  noiseUI() {
+    const sel = h('select', null, NOISE_TYPES.map(t => h('option', { value: t[0] }, t[1]))), len = h('input', { type: 'text', value: '00:10.00' }), lev = h('input', { type: 'text', value: '-24' });
+    const body = h('div', null, h('div', { class: 'dim' }, 'Type'), sel, h('div', { class: 'dim', style: 'margin-top:8px' }, 'Length (mm:ss.ss) — loop it longer afterwards'), len, h('div', { class: 'dim', style: 'margin-top:8px' }, 'Level (dB, about the peak — noise is best kept quiet)'), lev);
+    for (const i of [len, lev]) { i.style.cssText = 'width:100%;background:#000;border:1px solid var(--ln);border-radius:6px;padding:7px 9px;color:var(--tx)'; i.addEventListener('keydown', e => e.stopPropagation()); }
+    sel.style.cssText = 'width:100%;background:#000;border:1px solid var(--ln);border-radius:6px;padding:7px;color:var(--tx)';
+    modal('Create noise / static track', body, [{ label: 'Cancel' }, { label: 'Create', primary: true, fn: () => { const s = parseTime(len.value), d = parseFloat(lev.value); if (!s || s < SR * 0.5 || isNaN(d)) { toast('Check length and level'); return; } Ops.addNoiseTrack({ type: sel.value, secs: s / SR, db: clamp(d, -60, 0) }); } }]);
+  },
+  trimTrack(tid, at) {
+    const t = trackOf(tid); if (!t) return; H.push();
+    t.clips = t.clips.filter(c => c.start < at - MINLEN);
+    for (const c of t.clips) if (c.start + c.len > at) { c.len = at - c.start; c.fadeOut = Math.min(c.fadeOut, c.len); c.fadeIn = Math.min(c.fadeIn, c.len); }
+    UI.selClips = new Set(); afterEdit({ structure: true });
+  },
+  async trimTrackUI(tid) {
+    const t = trackOf(tid); if (!t) return; let end = 0; for (const c of t.clips) end = Math.max(end, c.start + c.len);
+    const v = await askText('Trim track to exact length', fmtTime(end), 'Everything after this time (mm:ss.ss) is removed from "' + t.name + '".'); const s = v == null ? null : parseTime(v);
+    if (s == null || s < MINLEN) return; Ops.trimTrack(tid, s);
+  },
+  loopClip(id, target) {
+    const f = findClip(id); if (!f) return; const c = f.c, end0 = c.start + c.len;
+    if (target <= end0 + MINLEN) { toast('Pick a time after the end of the clip'); return; }
+    H.push(); const fo = c.fadeOut; c.fadeOut = 0; let pos = end0, last = c, k = 0; const nsel = new Set([c.id]);
+    while (pos < target - MINLEN && k++ < 2000) {
+      const d = { ...c, id: uid('c'), start: pos, fadeIn: 0, fadeOut: 0 }; d.len = Math.min(c.len, target - pos);
+      f.t.clips.push(d); nsel.add(d.id); last = d; pos += d.len;
+    }
+    last.fadeOut = Math.min(fo, last.len); UI.selClips = nsel; afterEdit({ structure: true });
+  },
+  async loopClipUI(id) {
+    const f = findClip(id); if (!f) return;
+    const v = await askText('Loop clip until…', fmtTime(Math.max(projectEnd(), f.c.start + f.c.len * 2)), 'Repeats the clip back-to-back until this time (mm:ss.ss). The last repeat is cut to fit.'); const s = v == null ? null : parseTime(v);
+    if (s != null) Ops.loopClip(id, s);
+  }
+});
+
 // ---- WAV export (48 kHz / 24-bit, rendered one track at a time) ------------------------
 async function clipBuffer(c) { // one gap-free AudioBuffer for a clip's section
   const buf = new AudioBuffer({ length: Math.max(1, c.len), numberOfChannels: 2, sampleRate: SR });
@@ -730,10 +1121,11 @@ async function clipBuffer(c) { // one gap-free AudioBuffer for a clip's section
   }
   return buf;
 }
-async function renderTrack(tr, length) {
+async function renderTrack(tr, length, withFx = true) {
   const oc = new OfflineAudioContext(2, Math.max(1, length), SR);
   const g = buildTrackGraph(oc, tr, oc.destination);
-  // (Stage 2: the effect chain is inserted into g here, same as live)
+  const fxList = withFx ? (tr.fx || []).filter(f => f.on !== false) : [];
+  if (fxList.length) { await ensureFxWorklet(oc); wireChain(g, fxList.map(f => Effects.create(oc, f))); } // same chain as live
   for (const c of tr.clips) {
     if (c.start >= length) continue;
     const b = await clipBuffer(c), src = oc.createBufferSource(), cg = oc.createGain();
@@ -784,12 +1176,13 @@ const peakDb = p => p <= 0 ? '-∞' : (20 * Math.log10(p)).toFixed(1);
 function doneMsg(st) { return st.clipped ? `Exported — ${st.clipped} samples clipped above 0 dBFS, lower some volumes` : `Exported — peak ${peakDb(st.peak)} dBFS`; }
 
 async function exportTrackWav(tr, withFx) {
-  const len = projectEnd(); if (!len) { toast('Nothing to export'); return; }
+  const body = projectEnd(); if (!body) { toast('Nothing to export'); return; }
+  const len = body + (withFx ? Math.round(chainTail(tr) * SR) : 0);
   let sink; try { sink = await openSink(safeName(tr.name) + (withFx ? '' : ' (dry)') + '.wav'); } catch (e) { return; }
   const pr = progress('Exporting ' + tr.name);
   try {
     pr.set(0.05, 'Rendering…');
-    const buf = await renderTrack(tr, len), L = buf.getChannelData(0), R = buf.getChannelData(1);
+    const buf = await renderTrack(tr, len, withFx), L = buf.getChannelData(0), R = buf.getChannelData(1);
     const st = await writeWav(sink, len, async k => {
       const a = k * CHUNK, n = Math.min(CHUNK, len - a), f = new Float32Array(n * 2);
       for (let i = 0; i < n; i++) { f[2 * i] = L[a + i]; f[2 * i + 1] = R[a + i]; }
@@ -801,8 +1194,9 @@ async function exportTrackWav(tr, withFx) {
 }
 
 async function exportMix() {
-  const len = projectEnd(); if (!len) { toast('Nothing to export'); return; }
+  const body = projectEnd(); if (!body) { toast('Nothing to export'); return; }
   const solo = P.tracks.some(t => t.solo), tracks = P.tracks.filter(t => isAudible(t, solo) && t.clips.length);
+  const len = body + Math.round(Math.max(0, ...tracks.map(chainTail)) * SR); // let reverb/delay tails ring out
   if (!tracks.length) { toast('No audible tracks'); return; }
   let sink; try { sink = await openSink(safeName(P.name) + ' mix.wav'); } catch (e) { return; }
   const pr = progress('Exporting mix'), tmp = uid('x');
@@ -987,7 +1381,7 @@ function frame() {
 
 // ---- track headers -----------------------------------------------------------------------
 function updateEmpty() { $('#empty').style.display = P && P.tracks.length ? 'none' : 'flex'; }
-function syncHeaderSel() { for (const el of $('#headers').children) el.classList.toggle('sel', UI.selTracks.has(el.dataset.id)); UI.dirty = true; }
+function syncHeaderSel() { for (const el of $('#headers').children) el.classList.toggle('sel', UI.selTracks.has(el.dataset.id)); UI.dirty = true; FXUI.onSel(); }
 function selectTrack(t, e) {
   if (e.ctrlKey || e.metaKey) { UI.selTracks.has(t.id) ? UI.selTracks.delete(t.id) : UI.selTracks.add(t.id); }
   else if (e.shiftKey && UI.selTracks.size) {
@@ -1008,7 +1402,9 @@ function trackMenu(t, anchor) {
     { colors: TRACK_COLORS, pick: c => Ops.colorTracks(ids, c) },
     { label: 'Select all tracks', fn: () => { UI.selTracks = new Set(P.tracks.map(x => x.id)); syncHeaderSel(); } },
     '-',
+    { label: 'Effects…', fn: () => { UI.selTracks = new Set([t.id]); syncHeaderSel(); FXUI.show('chain'); } },
     { label: 'Import audio here…', fn: () => pickFiles(f => Ops.importInto(f, t)) },
+    { label: 'Trim track to exact length…', fn: () => Ops.trimTrackUI(t.id) },
     { label: 'Export track as WAV (with effects)', fn: () => exportTrackWav(t, true) },
     { label: 'Export track as WAV (without effects)', fn: () => exportTrackWav(t, false) },
   ];
@@ -1019,6 +1415,8 @@ function headerEl(t) {
   el.addEventListener('contextmenu', e => { e.preventDefault(); popMenu(e.clientX, e.clientY, trackMenu(t, el)); });
   const nm = h('div', { class: 'nm', title: 'Double-click to rename' }, t.name);
   nm.addEventListener('dblclick', () => { const r = nm.getBoundingClientRect(); inlineEdit(r, t.name, v => Ops.renameTrack(t.id, v)); });
+  const fxb = h('button', { class: 'fxb' + (t.fx.length ? ' on' : ''), title: 'Effects on this track' }, 'FX' + (t.fx.length || ''));
+  fxb.addEventListener('click', () => { UI.selTracks = new Set([t.id]); syncHeaderSel(); FXUI.show('chain'); });
   const dots = h('button', { class: 'dots', title: 'Track menu' }, '⋯');
   dots.addEventListener('click', e => { const r = dots.getBoundingClientRect(); popMenu(r.left, r.bottom + 2, trackMenu(t, el)); });
   const mb = h('button', { class: 'ms m' + (t.mute ? ' on' : ''), title: 'Mute' }, 'M'), sb = h('button', { class: 'ms s' + (t.solo ? ' on' : ''), title: 'Solo' }, 'S');
@@ -1039,7 +1437,7 @@ function headerEl(t) {
     knob.addEventListener('pointermove', mv); knob.addEventListener('pointerup', up);
   });
   knob.addEventListener('dblclick', () => { H.push(); t.pan = 0; showPan(); Engine.applyParams(); Save.mark(); });
-  el.append(h('div', { class: 'row' }, h('span', { class: 'sw' }), nm, dots), h('div', { class: 'row' }, mb, sb, knob, lbl, vol));
+  el.append(h('div', { class: 'row' }, h('span', { class: 'sw' }), nm, fxb, dots), h('div', { class: 'row' }, mb, sb, knob, lbl, vol));
   return el;
 }
 function buildHeaders() { const hd = $('#headers'); hd.textContent = ''; for (const t of P.tracks) hd.append(headerEl(t)); UI.dirty = true; }
@@ -1193,6 +1591,7 @@ function clipMenu(c, t) {
     '-',
     { label: 'Set start time…', fn: () => Ops.setClipTime(c.id, 'start') },
     { label: 'Set length…', fn: () => Ops.setClipTime(c.id, 'len') },
+    { label: 'Loop to length…', fn: () => Ops.loopClipUI(c.id) },
     { label: 'Fade in…', fn: () => fadeUI(ids, 'fadeIn') },
     { label: 'Fade out…', fn: () => fadeUI(ids, 'fadeOut') },
     { label: 'Remove fades', fn: () => { H.push(); for (const id of ids) { const f = findClip(id); if (f) f.c.fadeIn = f.c.fadeOut = 0; } afterEdit({ structure: true }); } },
@@ -1259,6 +1658,95 @@ async function fadeUI(ids, which) {
   afterEdit({ structure: true });
 }
 
+// ---- right-side effects panel ---------------------------------------------------------------------
+const FXUI = {
+  open: false, tab: 'lib', q: '', cat: 'All', favs: new Set(), expanded: new Set(), el: {},
+  CATS: ['All', '★ Favorites', ...Effects.categories, 'Generators'],
+  async init() {
+    const side = $('#side'), e = this.el;
+    e.tabLib = h('button', { onclick: () => this.show('lib') }, 'Library'); e.tabChain = h('button', { onclick: () => this.show('chain') }, 'Track chain');
+    e.search = h('input', { type: 'search', placeholder: 'Search effects…' });
+    e.search.addEventListener('input', () => { this.q = e.search.value.toLowerCase(); this.renderLib(); }); e.search.addEventListener('keydown', ev => ev.stopPropagation());
+    e.chips = h('div', { class: 'chips' }); e.list = h('div'); e.chain = h('div');
+    e.libPane = h('div', { class: 'pane' }, e.search, e.chips, e.list); e.chainPane = h('div', { class: 'pane' }, e.chain);
+    side.append(h('div', { class: 'tabs' }, e.tabLib, e.tabChain, h('button', { title: 'Close', onclick: () => this.toggle(false), style: 'flex:0 0 34px' }, '✕')), e.libPane, e.chainPane);
+    try { const pr = await Store.readJSON('prefs.json'); if (pr && pr.favs) this.favs = new Set(pr.favs); } catch (err) { }
+    this.show(this.tab, true); this.renderLib();
+  },
+  toggle(force) { this.open = force == null ? !this.open : force; $('#main').classList.toggle('side', this.open); $('#fxBtn').classList.toggle('on', this.open); if (this.open) this.refresh(); },
+  show(tab, quiet) { this.tab = tab; this.el.tabLib.classList.toggle('on', tab === 'lib'); this.el.tabChain.classList.toggle('on', tab === 'chain'); this.el.libPane.style.display = tab === 'lib' ? '' : 'none'; this.el.chainPane.style.display = tab === 'chain' ? '' : 'none'; if (!quiet) { if (!this.open) this.toggle(true); this.refresh(); } },
+  onSel() { if (this.open) this.renderChain(); },
+  refresh() { if (!this.open) return; this.renderChain(); },
+  chainTrack() { for (const id of UI.selTracks) { const t = trackOf(id); if (t) return t; } return null; },
+  saveFavs() { Store.writeFile('prefs.json', JSON.stringify({ favs: [...this.favs] })).catch(() => { }); },
+  // --- library
+  renderLib() {
+    const e = this.el; e.chips.textContent = '';
+    for (const c of this.CATS) e.chips.append(h('button', { class: this.cat === c ? 'on' : '', onclick: () => { this.cat = c; this.renderLib(); } }, c));
+    e.list.textContent = '';
+    const items = Effects.list.filter(d => (this.cat === 'All' || (this.cat === '★ Favorites' ? this.favs.has(d.id) : d.cat === this.cat)) && (!this.q || (d.name + ' ' + d.desc + ' ' + d.cat).toLowerCase().includes(this.q)));
+    for (const d of items) {
+      const star = h('button', { class: 'sm star' + (this.favs.has(d.id) ? ' on' : ''), title: 'Favorite', onclick: () => { this.favs.has(d.id) ? this.favs.delete(d.id) : this.favs.add(d.id); this.saveFavs(); this.renderLib(); } }, '★');
+      e.list.append(h('div', { class: 'fxc' }, h('div', { class: 'hd' }, h('b', null, d.name), h('span', { class: 'dim' }, d.cat), star),
+        h('div', { class: 'ds' }, d.desc), h('button', { class: 'primary sm', onclick: () => this.add(d.id) }, '+ Add to selected track')));
+    }
+    if ((this.cat === 'All' || this.cat === 'Generators' || (this.cat === '★ Favorites' && this.favs.has('_noise'))) && (!this.q || 'noise static crackle hum hiss generator loop'.includes(this.q))) {
+      e.list.append(h('div', { class: 'fxc' }, h('div', { class: 'hd' }, h('b', null, 'Noise & static layers'), h('span', { class: 'dim' }, 'Generator')),
+        h('div', { class: 'ds' }, 'Creates a new track of white/pink noise, radio static, vinyl crackle or hum. Loop it longer and fade it in/out like any clip.'),
+        h('button', { class: 'primary sm', onclick: () => Ops.noiseUI() }, 'Create noise track…')));
+    }
+    if (!e.list.children.length) e.list.append(h('div', { class: 'empt' }, this.cat === '★ Favorites' ? 'Star an effect to keep it here.' : 'No effects match.'));
+  },
+  add(type) {
+    const ids = UI.selTracks.size ? [...UI.selTracks] : []; if (!ids.length) { toast('Select a track first (click its name)'); return; }
+    const n = Ops.addFx(ids, type); toast(`Added ${Effects.byId[type].name} to ${n} track${n > 1 ? 's' : ''}`); this.show('chain');
+  },
+  // --- chain of the selected track
+  renderChain() {
+    const c = this.el.chain; c.textContent = ''; const t = this.chainTrack();
+    if (!t) { c.append(h('div', { class: 'empt' }, 'Click a track name to see its effects here.')); return; }
+    c.append(h('div', { style: 'margin-bottom:8px;display:flex;align-items:center;gap:6px' }, h('span', { style: `width:12px;height:12px;border-radius:3px;background:${t.color}` }), h('b', null, t.name), h('span', { class: 'dim' }, t.fx.length ? 'effects run top → bottom' : ''), h('span', { style: 'flex:1' }),
+      h('button', { class: 'sm', onclick: () => this.show('lib') }, '+ Add')));
+    if (!t.fx.length) c.append(h('div', { class: 'empt' }, 'No effects on this track yet. Open the Library to add some.'));
+    t.fx.forEach((fx, idx) => c.append(this.card(t, fx, idx)));
+  },
+  card(t, fx, idx) {
+    const d = Effects.byId[fx.type], open = this.expanded.has(fx.id), full = Effects.full(fx);
+    const el = h('div', { class: 'fxc' + (fx.on === false ? ' off' : '') });
+    const nm = h('b', { onclick: () => { open ? this.expanded.delete(fx.id) : this.expanded.add(fx.id); this.renderChain(); } }, (open ? '▾ ' : '▸ ') + d.name);
+    el.append(h('div', { class: 'hd' }, nm,
+      h('button', { class: 'sm' + (fx.on === false ? '' : ' on'), title: 'Bypass on/off', onclick: () => Ops.toggleFx(t.id, fx.id) }, fx.on === false ? 'Off' : 'On'),
+      h('button', { class: 'sm', title: 'Move up', disabled: idx === 0, onclick: () => Ops.moveFx(t.id, fx.id, -1) }, '↑'),
+      h('button', { class: 'sm', title: 'Move down', disabled: idx === t.fx.length - 1, onclick: () => Ops.moveFx(t.id, fx.id, 1) }, '↓'),
+      h('button', { class: 'sm', title: 'Remove', onclick: () => Ops.removeFx(t.id, fx.id) }, '✕')));
+    if (!open) return el;
+    el.append(h('div', { class: 'ds' }, d.desc));
+    if (d.presets) {
+      const sel = h('select', { onchange: () => { const p = d.presets[sel.value]; if (p) Ops.applyPreset(t.id, fx.id, p); } }, h('option', { value: '' }, 'Presets…'), d.presets.map((p, i) => h('option', { value: i }, p.name)));
+      el.append(sel);
+    }
+    for (const q of d.params) el.append(this.param(t, fx, q, full[q.k]));
+    el.append(h('div', { style: 'margin-top:8px' }, h('button', { class: 'sm', onclick: () => Ops.resetFx(t.id, fx.id) }, 'Reset to default')));
+    return el;
+  },
+  param(t, fx, q, val) {
+    const row = h('div', { class: 'prm', title: q.hint || '' }), vtxt = h('span');
+    const fmt = v => (q.step >= 1 || q.log ? Math.round(v) : q.step >= 0.1 ? (+v).toFixed(1) : (+v).toFixed(2)) + (q.unit ? ' ' + q.unit : '');
+    row.append(h('div', { class: 'lb' }, h('span', null, q.name), vtxt));
+    if (q.options) {
+      const sel = h('select', { onchange: () => { H.push(); fx.p[q.k] = sel.value; Engine.updateFx(t.id, fx); Save.mark(); } }, q.options.map(o => h('option', { value: o[0], selected: o[0] === val }, o[1])));
+      vtxt.textContent = ''; row.append(sel); return row;
+    }
+    const toPos = v => q.log ? Math.log(v / q.min) / Math.log(q.max / q.min) * 1000 : (v - q.min) / (q.max - q.min) * 1000;
+    const fromPos = p => { let v = q.log ? q.min * Math.pow(q.max / q.min, p / 1000) : q.min + p / 1000 * (q.max - q.min); if (q.step && !q.log) v = Math.round(v / q.step) * q.step; return clamp(v, q.min, q.max); };
+    const r = h('input', { type: 'range', min: 0, max: 1000, value: Math.round(toPos(val)) }); vtxt.textContent = fmt(val); let pushed = false;
+    r.addEventListener('input', () => { if (!pushed) { H.push(); pushed = true; } const v = fromPos(+r.value); fx.p[q.k] = v; vtxt.textContent = fmt(v); Engine.updateFx(t.id, fx); Save.mark(); });
+    r.addEventListener('change', () => pushed = false);
+    r.addEventListener('dblclick', () => { H.push(); fx.p[q.k] = q.def; r.value = Math.round(toPos(q.def)); vtxt.textContent = fmt(q.def); Engine.updateFx(t.id, fx); Save.mark(); });
+    row.append(r); return row;
+  }
+};
+
 // ---- project management, top bar, keyboard, startup -----------------------------------------
 function normalize(p) {
   p.view = Object.assign({ pps: 60, scroll: 0, vscroll: 0, ph: 0 }, p.view);
@@ -1281,7 +1769,7 @@ async function setProject(p) {
   UI.tool = P.ui.tool; UI.snap = P.ui.snap; UI.selTracks = new Set(P.ui.selTracks); UI.selClips = new Set(P.ui.selClips); UI.range = null; UI.selMarker = null;
   cleanSel();
   $('#projBtn').textContent = P.name; document.title = P.name + ' — Studio';
-  Engine.syncTracks(); buildHeaders(); updateToolBtns(); updateEmpty(); syncUndoBtns();
+  await Engine.fxReady; Engine.syncTracks(); buildHeaders(); updateToolBtns(); updateEmpty(); syncUndoBtns();
   bs.scrollTop = P.view.vscroll || 0; syncHbar(); UI.dirty = true;
   Store.writeFile('last.json', JSON.stringify({ id: P.id }));
   Save.lastSnap = Date.now();
@@ -1371,7 +1859,7 @@ function wireUI() {
   $('#zin').onclick = () => zoomAt(W / 2, 1.5); $('#zout').onclick = () => zoomAt(W / 2, 1 / 1.5); $('#zfit').onclick = () => { fitZoom(); Save.mark(); };
   $('#undo').onclick = () => H.doUndo(); $('#redo').onclick = () => H.doRedo();
   $('#add').onclick = () => Ops.addTrack(); $('#import').onclick = () => pickFiles(f => Ops.importInto(f, null));
-  $('#export').onclick = exportMix;
+  $('#export').onclick = exportMix; $('#fxBtn').onclick = () => FXUI.toggle();
   const ti = $('#time');
   ti.addEventListener('focus', () => ti.select());
   ti.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { const s = parseTime(ti.value); if (s != null) { Engine.seek(s); const x = s2x(s); if (x < 0 || x > W) setScroll(s - W * 0.1 * SR / P.view.pps); } ti.blur(); } if (e.key === 'Escape') ti.blur(); });
@@ -1409,7 +1897,7 @@ function wireUI() {
 
 (async function main() {
   if (!(navigator.storage && navigator.storage.getDirectory)) { document.body.innerHTML = '<div style="padding:40px;font-size:18px">This browser doesn’t support local file storage (OPFS). Please use Chrome on your Chromebook.</div>'; return; }
-  await Store.init(); Engine.init(); wireUI(); resize();
+  await Store.init(); Engine.init(); wireUI(); FXUI.init(); resize();
   Store.remove('tmp'); // leftovers from an interrupted export
   const last = await Store.readJSON('last.json'); let p = last && await Store.loadProject(last.id);
   if (!p) { p = newProject('My first project'); await Store.writeFile(`projects/${p.id}/project.json`, JSON.stringify(p)); }
