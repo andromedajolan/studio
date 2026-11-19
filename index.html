@@ -10,6 +10,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--tx);font:13px/1.
 button{font:inherit;color:inherit;background:var(--p3);border:1px solid var(--ln);border-radius:6px;padding:5px 9px;cursor:pointer}
 button:hover{background:#32323d}button.on{background:var(--ac);color:#04121a;border-color:var(--ac)}
 button:disabled{opacity:.35;cursor:default}
+a.btnlink{font:inherit;color:inherit;background:var(--p3);border:1px solid var(--ln);border-radius:6px;padding:5px 9px;text-decoration:none;white-space:nowrap}a.btnlink:hover{background:#32323d}
 input{font:inherit;color:inherit}
 #app{display:grid;grid-template-rows:54px 1fr;height:100%}
 #top{display:flex;align-items:center;gap:6px;padding:0 10px;background:var(--p1);border-bottom:1px solid var(--ln);overflow-x:auto;white-space:nowrap}
@@ -149,6 +150,7 @@ textarea.mutes{width:100%;box-sizing:border-box;background:#000;border:1px solid
 <body>
 <div id="app">
  <div id="top">
+  <div class="grp"><a id="ianuaHome" class="btnlink" href="/" title="Back to Ianua, the Abditum launcher">&#8592; Ianua</a></div>
   <div class="grp"><button id="projBtn" title="Project menu">Project</button></div>
   <div class="grp"><button id="toStart" title="Back to start (Home)">⏮</button><button id="play" title="Play / pause (Space)">▶</button><button id="rec" title="Record from mic into a new track">● Rec</button></div>
   <div class="grp"><input id="time" value="00:00.00" title="Playhead — click to type a time (mm:ss.ss)" spellcheck="false"></div>
