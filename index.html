@@ -1499,6 +1499,7 @@ function drawMidiMini(g, c, t, x, w, top, ch) {
   const ns = c.notes || []; if (!ns.length) return; let lo = 127, hi = 0; for (const n of ns) { if (n.p < lo) lo = n.p; if (n.p > hi) hi = n.p; }
   const span = Math.max(11, hi - lo + 1), h = Math.max(2, Math.min(5, (ch - 22) / span)), y0 = top + 18, ya = ch - 22, pps = P.view.pps; g.fillStyle = lighten(t.color);
   for (const n of ns) { const nx = x + (beatsToFrames(n.t, c.bpm) - c.offset) * pps / SR, nw = Math.max(1.5, beatsToFrames(n.d, c.bpm) * pps / SR - 0.5); if (nx + nw < x || nx > x + w) continue; const ny = y0 + ya - (n.p - lo + 0.5) / span * ya - h / 2; g.fillRect(nx, ny, nw, h); }
+  if ((c.chords || []).length) { g.save(); g.font = 'bold 11px system-ui'; g.textBaseline = 'middle'; for (const k of c.chords) { const nx = x + (beatsToFrames(k.t, c.bpm) - c.offset) * P.view.pps / SR, nx2 = x + (beatsToFrames(k.t + k.d, c.bpm) - c.offset) * P.view.pps / SR; if (nx2 < x || nx > x + w || nx2 - nx < 18) continue; const tw = g.measureText(k.name).width + 8, px = Math.max(nx, x) + 2; if (px + tw > nx2) continue; g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.roundRect(px, top + ch - 16, tw, 14, 4); g.fill(); g.fillStyle = '#fff'; g.fillText(k.name, px + 4, top + ch - 9); } g.restore(); }
 }
 function drawClip(g, c, t, y) {
   const pps = P.view.pps, x = s2x(c.start), w = c.len * pps / SR;
@@ -2675,42 +2676,69 @@ function detectKey(h){let tot=0;for(let i=0;i<12;i++)tot+=h[i];if(tot<=0)return 
   for(let i=0;i<12;i++){const a=h[(r+i)%12]-mx,b=pr[i]-my;sxy+=a*b;sxx+=a*a;syy+=b*b}const c=sxy/Math.sqrt(sxx*syy+1e-12);if(c>bs){bs=c;best={root:r,mode:mode,score:c}}}return best}
 function snapPitch(m,key){if(!key)return Math.round(m);const sc=SCALE[key.mode];let best=Math.round(m),bd=1e9;for(let p=Math.floor(m)-2;p<=Math.ceil(m)+2;p++){const d=(((p-key.root)%12)+12)%12;if(sc.indexOf(d)<0)continue;const dd=Math.abs(p-m);if(dd<bd){bd=dd;best=p}}return best}
 const NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-function keyName(k){return k?NAMES[k.root]+(k.mode==='minor'?' minor':' major'):'none'}
+const FNAMES=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+function flatKey(k){if(!k)return false;const rm=k.mode==='minor'?(k.root+3)%12:k.root;return [5,10,3,8,1,6].indexOf(rm)>=0}
+function pcName(pc,key){return (flatKey(key)?FNAMES:NAMES)[((pc%12)+12)%12]}
+function keyName(k){return k?pcName(k.root,k)+(k.mode==='minor'?' minor':' major'):'none'}
+// "Cm Ab Eb Bb7" -> [{r,nm}]  (unknown words are ignored)
+function parseProg(str){const out=[],seen={};const parts=String(str||'').split(/[\s,|;\-\/]+/);const base={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+ for(const w of parts){const m=/^([A-Ga-g])([#b♯♭]?)(maj7|M7|min7|m7|min|m|dim|7|)$/.exec(w);if(!m)continue;let r=base[m[1].toUpperCase()];if(m[2]==='#'||m[2]==='♯')r++;else if(m[2]==='b'||m[2]==='♭')r--;r=((r%12)+12)%12;
+  const sf=m[3],nm=sf==='maj7'||sf==='M7'?'maj7':sf==='m7'||sf==='min7'?'m7':sf==='m'||sf==='min'?'m':sf==='dim'?'dim':sf==='7'?'7':'';const k=r+nm;if(!seen[k]){seen[k]=1;out.push({r:r,nm:nm})}}return out}
 
 // ---------- monophonic pitch -> notes -------------------------------------------------------------
-function pitchNotes(f,o){const n=f.f0.length,hop=f.hop,off=f.off;if(!n)return [];const rp=pctl(f.rms,0.95),thr=Math.max(0.003,rp*0.05);
- const m=new Float64Array(n).fill(NaN);for(let i=0;i<n;i++)if(f.rms[i]>thr&&f.conf[i]>0.6&&f.f0[i]>0)m[i]=69+12*Math.log2(f.f0[i]/440);
+function pitchNotes(f,o){const n=f.f0.length,hop=f.hop,off=f.off;if(!n)return [];const rp=pctl(f.rms,0.95),sp=Math.max(0,Math.min(100,o.simplify==null?0:o.simplify))/100,thr=Math.max(0.003,rp*(0.05+0.07*sp)),cmin=0.6+0.12*sp,
+ devT=0.8+0.6*sp,devN=3+Math.round(4*sp),half=2+Math.round(9*sp);
+ const m=new Float64Array(n).fill(NaN);for(let i=0;i<n;i++)if(f.rms[i]>thr&&f.conf[i]>cmin&&f.f0[i]>0)m[i]=69+12*Math.log2(f.f0[i]/440);
  // 5-frame median (voiced only)
- const ms=new Float64Array(n).fill(NaN);for(let i=0;i<n;i++){if(isNaN(m[i]))continue;const w=[];for(let k=Math.max(0,i-2);k<=Math.min(n-1,i+2);k++)if(!isNaN(m[k]))w.push(m[k]);ms[i]=median(w)}
+ const ms=new Float64Array(n).fill(NaN);for(let i=0;i<n;i++){if(isNaN(m[i]))continue;const w=[];for(let k=Math.max(0,i-half);k<=Math.min(n-1,i+half);k++)if(!isNaN(m[k]))w.push(m[k]);ms[i]=median(w)}
  const notes=[];let cur=null,dev=0,gap=0;
  const close=function(end){if(!cur)return;const dur=end-cur.i0;if(dur>=5){cur.i1=end;notes.push(cur)}cur=null;dev=0;gap=0};
  for(let i=0;i<n;i++){const v=ms[i];
   if(isNaN(v)){if(cur){gap++;if(gap>=3)close(i-gap+1)}continue}gap=0;
   if(!cur){cur={i0:i,fr:[v],pk:f.rms[i]};continue}
   const mc=median(cur.fr.slice(-12));
-  if(Math.abs(v-mc)>0.8){dev++;if(dev>=3){const s=i-dev+1;close(s);cur={i0:s,fr:[],pk:0};for(let k=s;k<=i;k++){if(!isNaN(ms[k])){cur.fr.push(ms[k]);cur.pk=Math.max(cur.pk,f.rms[k])}}dev=0;continue}}else dev=0;
+  if(Math.abs(v-mc)>devT){dev++;if(dev>=devN){const s=i-dev+1;close(s);cur={i0:s,fr:[],pk:0};for(let k=s;k<=i;k++){if(!isNaN(ms[k])){cur.fr.push(ms[k]);cur.pk=Math.max(cur.pk,f.rms[k])}}dev=0;continue}}else dev=0;
   // re-articulation of the same pitch (energy dips then jumps back)
-  if(i-cur.i0>8){let mn=1e9;for(let k=i-6;k<i;k++)mn=Math.min(mn,f.rms[k]);if(f.rms[i]>1.7*mn&&mn<0.6*f.rms[i]&&f.rms[i]>0.8*cur.pk&&f.rms[i-1]<=f.rms[i]){const s=i;close(s);cur={i0:s,fr:[v],pk:f.rms[i]};continue}}
+  if(sp<0.85&&i-cur.i0>8){let mn=1e9;for(let k=i-6;k<i;k++)mn=Math.min(mn,f.rms[k]);if(f.rms[i]>(1.7+3*sp)*mn&&mn<0.6*f.rms[i]&&f.rms[i]>0.8*cur.pk&&f.rms[i-1]<=f.rms[i]){const s=i;close(s);cur={i0:s,fr:[v],pk:f.rms[i]};continue}}
   cur.fr.push(v);if(f.rms[i]>cur.pk)cur.pk=f.rms[i]}
  close(n);
+ // onsets: a note starts when its energy starts, not when the pitch has settled (scoops, soft starts)
+ for(let k=0;k<notes.length;k++){const c=notes[k],lim=k?notes[k-1].i1:0;let pk=0;for(let q=c.i0;q<c.i1;q++)pk=Math.max(pk,f.rms[q]);let ex=0;while(c.i0>lim&&ex<20&&f.rms[c.i0-1]>0.4*pk&&f.rms[c.i0-1]>thr){c.i0--;ex++}}
  const out=[];for(const c of notes){const p=median(c.fr);let pk=0;for(let k=c.i0;k<c.i1;k++)pk=Math.max(pk,f.rms[k]);const db=20*Math.log10(Math.max(pk,1e-6)/Math.max(rp,1e-6));
   out.push({t:c.i0*hop+off,d:(c.i1-c.i0)*hop,m:p,v:Math.max(35,Math.min(120,Math.round(95+db*3)))})}
  return out}
 
 // ---------- chords -> notes -----------------------------------------------------------------------
 const CHORDS={'':[0,4,7],'m':[0,3,7],'dim':[0,3,6],'7':[0,4,7,10],'maj7':[0,4,7,11],'m7':[0,3,7,10]};
-function chordNotes(f,o,bpm,phase,key){const spb=60/bpm,seg=(o.seg||1)*spb,n=f.chroma.length;if(!n)return {notes:[],chords:[]};
- const sevenths=o.vocab==='sevenths',names=sevenths?Object.keys(CHORDS):['','m'],maxCen=pctl(f.cen,0.95),thr=Math.max(0.002,maxCen*0.08);
- const dia={};if(key){const sc=SCALE[key.mode];for(const nm of names){for(let r=0;r<12;r++){const ok=CHORDS[nm].every(function(iv){return sc.indexOf((((r+iv-key.root)%12)+12)%12)>=0});dia[r+nm]=ok}}}
- const tEnd=f.seconds,nseg=Math.max(1,Math.ceil((tEnd-phase)/seg)),res=[];let prev=null;
+function chordNotes(f,o,bpm,phase,key){const spb=60/bpm,seg=(o.seg||2)*spb,n=f.chroma.length;if(!n)return {notes:[],chords:[]};
+ const maxCen=pctl(f.cen,0.95),thr=Math.max(0.002,maxCen*0.08),simp=o.simplify==null?50:o.simplify,sevenths=o.vocab==='sevenths';
+ // candidate chords: the typed progression, else the chords that belong to the key, else everything simple
+ let cand=[];const typed=o.prog&&o.prog.length?o.prog:null;
+ if(typed)cand=typed;
+ else if(key&&o.stayInKey!==false){const sc=SCALE[key.mode],nms=sevenths?['','m','7','maj7','m7']:['','m'];
+  for(let r=0;r<12;r++)for(const nm of nms)if(CHORDS[nm].every(function(iv){return sc.indexOf((((r+iv-key.root)%12)+12)%12)>=0}))cand.push({r:r,nm:nm});
+  // a 7th is only allowed when its plain triad is also in the key; keep dim out of the simple list
+ }else{for(let r=0;r<12;r++)for(const nm of (sevenths?['','m','7','maj7','m7']:['','m']))cand.push({r:r,nm:nm})}
+ if(!cand.length)return {notes:[],chords:[]};
+ const tEnd=f.seconds,nseg=Math.max(1,Math.ceil((tEnd-phase)/seg)),C=cand.length,em=[],silent=[];
  for(let s=0;s<nseg;s++){const a=phase+s*seg,b=a+seg,acc=new Array(12).fill(0);let cnt=0,en=0;
   for(let i=0;i<n;i++){const tc=i*f.hopC+f.off;if(tc<a||tc>=b)continue;let sum=0;for(let k=0;k<12;k++)sum+=f.chroma[i][k];if(sum<=0)continue;for(let k=0;k<12;k++)acc[k]+=f.chroma[i][k]/sum;cnt++;en+=f.cen[i]}
-  if(!cnt||en/cnt<thr){res.push(null);continue}
-  let na=0;for(let k=0;k<12;k++)na+=acc[k]*acc[k];na=Math.sqrt(na)+1e-9;let best=null,bs=-1;
-  for(let r=0;r<12;r++)for(const nm of names){const tp=CHORDS[nm];let dot=0;for(const iv of tp)dot+=acc[(r+iv)%12];let sc=dot/(Math.sqrt(tp.length)*na);if(tp.length>3)sc-=0.04;if(nm==='dim')sc-=0.03;if(key&&dia[r+nm])sc+=0.03;if(prev&&prev.r===r&&prev.nm===nm)sc+=0.05;if(sc>bs){bs=sc;best={r:r,nm:nm}}}
-  prev=best;res.push(best)}
+  if(!cnt||en/cnt<thr){silent.push(true);em.push(new Float64Array(C));continue}silent.push(false);
+  let na=0;for(let k=0;k<12;k++)na+=acc[k]*acc[k];na=Math.sqrt(na)+1e-9;const e=new Float64Array(C);
+  for(let j=0;j<C;j++){const tp=CHORDS[cand[j].nm];let dot=0;for(const iv of tp)dot+=acc[(cand[j].r+iv)%12];let sc=dot/(Math.sqrt(tp.length)*na);if(tp.length>3)sc-=0.09;e[j]=sc}
+  em.push(e)}
+ // Viterbi: staying on a chord is free, changing costs; the Simplify slider makes changes more expensive
+ const lam=0.05+simp*0.0022,score=[],back=[];
+ for(let s=0;s<nseg;s++){const row=new Float64Array(C),bk=new Int16Array(C);
+  if(s===0){for(let j=0;j<C;j++)row[j]=em[0][j]}
+  else{const pr=score[s-1];let bi=0;for(let j=1;j<C;j++)if(pr[j]>pr[bi])bi=j;
+   for(let j=0;j<C;j++){const stay=pr[j],sw=pr[bi]-lam;if(stay>=sw){row[j]=stay+em[s][j];bk[j]=j}else{row[j]=sw+em[s][j];bk[j]=bi}}}
+  score.push(row);back.push(bk)}
+ const path=new Int16Array(nseg);{let bi=0;const last=score[nseg-1];for(let j=1;j<C;j++)if(last[j]>last[bi])bi=j;path[nseg-1]=bi;for(let s=nseg-1;s>0;s--)path[s-1]=back[s][path[s]]}
+ const res=[];for(let s=0;s<nseg;s++)res.push(silent[s]?null:cand[path[s]]);
+ // a chord never lasts less than one chord length; stray single segments are absorbed by a neighbour
  const notes=[],chords=[];let i=0;while(i<res.length){const c=res[i];let j=i+1;while(j<res.length&&res[j]&&c&&res[j].r===c.r&&res[j].nm===c.nm)j++;
-  if(c){const d=(j-i)*seg,tb=i*seg/spb,db=d/spb,name=NAMES[c.r]+c.nm;chords.push({t:tb,d:db,name:name});
+  if(c){const d=(j-i)*seg,tb=i*seg/spb,db=d/spb,name=pcName(c.r,key)+c.nm;chords.push({t:tb,d:db,name:name});
    notes.push({tb:tb,db:db,p:36+c.r,v:80});for(const iv of CHORDS[c.nm]){const p=55+((((c.r+iv-55)%12)+12)%12);notes.push({tb:tb,db:db,p:p,v:78})}}i=j}
  return {notes:notes,chords:chords}}
 
@@ -2736,11 +2764,13 @@ function convert(f,o){o=o||{};const type=f.type,res={notes:[],bpm:o.bpm||null,ke
   // octave
   let oct=o.octave==null||o.octave==='auto'?0:o.octave*12;
   if(o.octave==null||o.octave==='auto'){const md=median(raw.map(function(n){return n.m}));if(type==='bass'){while(md+oct>55)oct-=12;while(md+oct<28)oct+=12}else{while(md+oct>96)oct-=12;while(md+oct<36)oct+=12}}
-  // key
-  const h=new Array(12).fill(0);for(const n of raw){h[((Math.round(n.m+oct)%12)+12)%12]+=n.d}
-  const key=o.key==='none'?null:(o.key&&o.key!=='auto'?o.key:detectKey(h));res.key=key;
-  for(const n of raw)ev.push({t:n.t,d:n.d,p:snapPitch(n.m+oct,key),v:n.v,s:n.v})}
- // ---- timing: grid, strength
+  // key: found from the cleaned-up notes, so vibrato wobble and blips cannot vote
+  const sopt={simplify:o.simplify,minNote:o.minNote,bpm:bpm};let key=null;const keyIn=o.key==='none'?'none':(o.key&&o.key!=='auto'?o.key:null);
+  const pre=simplifyEvents(raw.map(function(n){return {t:n.t,d:n.d,p:Math.round(n.m+oct),m:n.m+oct,v:n.v,s:n.v}}),sopt,type);
+  if(keyIn==='none')key=null;else if(keyIn)key=keyIn;else{const h=new Array(12).fill(0),longN=pre.filter(function(n){return n.d>=0.15});for(const n of (longN.length>=3?longN:pre))h[((n.p%12)+12)%12]+=n.d;key=detectKey(h)}
+  res.key=key;ev=pre.map(function(n){return {t:n.t,d:n.d,p:snapPitch(n.m,key),v:n.v,s:n.v}});
+  // snapping can make neighbours equal: join them once more
+  ev=simplifyEvents(ev.map(function(n){return {t:n.t,d:n.d,p:n.p,m:n.p,v:n.v,s:n.s}}),sopt,type);if(!ev.length){res.info.empty=true;return res}} // ---- timing: grid, strength
  const spb=60/bpm,G=(o.grid||0.25),strength=o.strength==null?0.85:o.strength;ev.sort(function(a,b){return a.t-b.t});
  const phaseSec=gridPhase(ev.map(function(e){return e.t}),ev.map(function(e){return e.s||1}),spb),gs=G*spb;
  // grid origin: the gridline at or before the first event
@@ -2754,6 +2784,21 @@ function convert(f,o){o=o||{};const type=f.type,res={notes:[],bpm:o.bpm||null,ke
   const out=[];for(const n of notes){const l=out[out.length-1];if(l&&Math.abs(l.t-n.t)<1e-6){if(n.v>l.v)out[out.length-1]=n;continue}if(l&&l.t+l.d>n.t)l.d=Math.max(0.0625,Math.round((n.t-l.t)*960)/960);out.push(n)}res.notes=out}
  else{const out=[];for(const n of notes){const l=out.filter(function(x){return x.p===n.p}).pop();if(l&&Math.abs(l.t-n.t)<1e-6)continue;out.push(n)}res.notes=out}
  res.bpm=bpm;res.origin=origin;res.info.count=res.notes.length;return res}
+// clean-up on the finished (snapped) notes: drop blips and breaths, absorb wobbles, join split notes
+function simplifyEvents(ev,o,type){const sp=Math.max(0,Math.min(100,o.simplify==null?0:o.simplify))/100,spb=60/(o.bpm||120);
+ let minD=0.035+0.19*sp;if(o.minNote)minD=Math.max(minD,o.minNote*spb);if(sp<=0&&!o.minNote)return ev;
+ const joinGap=0.02+(type==='melody'?0.13:0.07)*sp;let a=ev.slice().sort(function(x,y){return x.t-y.t});
+ for(let pass=0;pass<3;pass++){const out=[];
+  for(let i=0;i<a.length;i++){const e=a[i],pv=out[out.length-1],nx=a[i+1];
+   if(e.d<minD){ // short note: a wobble between two equal notes, or a one-off blip
+    if(pv&&nx&&pv.p===nx.p&&Math.abs(Math.abs(e.p-pv.p))<=2&&nx.t-(pv.t+pv.d)<minD*1.5){pv.d=Math.max(pv.d,nx.t+nx.d-pv.t);i++;pv.v=Math.max(pv.v,nx.v);continue}
+    if(pv&&Math.abs(e.p-pv.p)<=2&&e.t-(pv.t+pv.d)<joinGap&&e.d<minD*0.7){pv.d=e.t+e.d-pv.t;continue}
+    if(nx&&Math.abs(e.p-nx.p)<=1&&nx.t-(e.t+e.d)<=joinGap+0.02&&!(pv&&Math.abs(pv.p-e.p)<=1&&e.t-(pv.t+pv.d)<joinGap)){nx.d=nx.t+nx.d-e.t;nx.t=e.t;continue}
+    continue}
+   if(pv&&pv.p===e.p&&e.t-(pv.t+pv.d)<=joinGap&&(type==='melody'||sp>=0.5)){pv.d=e.t+e.d-pv.t;pv.v=Math.max(pv.v,e.v);continue}
+   out.push({t:e.t,d:e.d,p:e.p,m:e.m,v:e.v,s:e.s})}
+  a=out}
+ return a}
 function estimateTempo(f){const e=envOf(f);return e?tempoFromEnv(e.o,e.h):null}
 `;
 const A2M_WORKER = `${A2M_SRC}
@@ -2761,7 +2806,7 @@ let an=null;
 self.onmessage=function(e){const m=e.data;
  if(m.cmd==='init'){an=new Analyzer(m.type);self.postMessage({ok:true});return}
  if(m.cmd==='data'){an.push(m.buf);if(m.last){self.postMessage({feat:an.finish()})}else self.postMessage({ok:true})}};`;
-const A2M = new Function(A2M_SRC + '; return {Analyzer, convert, drumHits, kitFromHits, estimateTempo, detectKey, keyName, NAMES, CHORDS, SCALE};')();
+const A2M = new Function(A2M_SRC + '; return {Analyzer, convert, parseProg, pcName, drumHits, kitFromHits, estimateTempo, detectKey, keyName, NAMES, CHORDS, SCALE};')();
 
 // ---- audio -> MIDI: the dialog, the drum-kit setup, and the one-clip-at-a-time analysis job ---------------------------
 const A2MUI = {
@@ -2790,8 +2835,8 @@ const A2MUI = {
     let f = cid ? findClip(cid) : null;
     if (!f) for (const id of UI.selClips) { const g = findClip(id); if (g && !g.c.midi) { f = g; break; } }
     if (!f || f.c.midi || !f.c.aid) { toast('Click one audio clip first, then choose Audio → MIDI'); return; }
-    const c = f.c, t = f.t, S = this.st = { cid: c.id, type: 'melody', feat: null, res: null, bpm: 0, bpmEst: null, grid: 0.25, strength: 85, key: 'auto', octave: 'auto', vocab: 'triads', seg: 1, inst: 'keys', tok: { cancel: false }, voices: [] };
-    const nm = /drum|beat|perc/i.test(t.name) ? 'drums' : /bass/i.test(t.name) ? 'bass' : /chord|pad|keys|piano|guitar/i.test(t.name) ? 'chords' : 'melody'; S.type = nm; S.inst = this.defInst(nm);
+    const c = f.c, t = f.t, S = this.st = { cid: c.id, type: 'melody', feat: null, res: null, bpm: 0, bpmEst: null, grid: 0.25, strength: 85, key: 'auto', octave: 'auto', vocab: 'triads', seg: 2, simplify: 40, minNote: 0, progTxt: '', stayInKey: true, inst: 'keys', tok: { cancel: false }, voices: [] };
+    const nm = /drum|beat|perc/i.test(t.name) ? 'drums' : /bass/i.test(t.name) ? 'bass' : /chord|pad|keys|piano|guitar/i.test(t.name) ? 'chords' : 'melody'; S.type = nm; S.inst = this.defInst(nm); S.simplify = nm === 'melody' ? 50 : nm === 'bass' ? 35 : 40;
     const body = h('div', { class: 'a2m' }); S.body = body; const m = this.m = modal('Audio → MIDI — ' + (c.name || t.name), body, [{ label: 'Close', fn: () => { S.tok.cancel = true; this.stopPrev(); } }]);
     m.el.style.minWidth = '520px'; this.render();
   },
@@ -2799,7 +2844,7 @@ const A2MUI = {
   render() {
     const S = this.st, b = S.body; b.textContent = '';
     const types = [['drums', 'Drums', 'kick, snare, hat from mouth or beats'], ['bass', 'Bass', 'one low note at a time'], ['melody', 'Melody', 'one note at a time, hummed or played'], ['chords', 'Chords', 'chords from a full-sounding part']];
-    b.append(h('div', { class: 'dim' }, 'What is in this clip?'), h('div', { class: 'a2mtypes' }, types.map(([k, l, d]) => h('button', { class: 'a2mt' + (S.type === k ? ' on' : ''), title: d, onclick: () => { if (S.type !== k) { S.type = k; S.inst = this.defInst(k); S.feat = null; S.res = null; this.stopPrev(); this.render(); } } }, h('b', null, l), h('span', { class: 'dim' }, d)))));
+    b.append(h('div', { class: 'dim' }, 'What is in this clip?'), h('div', { class: 'a2mtypes' }, types.map(([k, l, d]) => h('button', { class: 'a2mt' + (S.type === k ? ' on' : ''), title: d, onclick: () => { if (S.type !== k) { S.type = k; S.inst = this.defInst(k); S.simplify = k === 'melody' ? 50 : k === 'bass' ? 35 : 40; S.feat = null; S.res = null; this.stopPrev(); this.render(); } } }, h('b', null, l), h('span', { class: 'dim' }, d)))));
     if (!S.feat) {
       const kitOk = !!this.getKit();
       b.append(h('div', { class: 'dim', style: 'margin:8px 0' }, S.type === 'drums' ? (kitOk ? 'Your drum-kit setup will be used to tell kick, snare and hat apart.' : 'Tip: do the short Drum kit setup first so kick, snare and hat are told apart reliably (without it, this guesses from the sound).') : 'The clip is analysed one piece at a time, so it stays light on memory.'),
@@ -2814,8 +2859,11 @@ const A2MUI = {
     b.append(row('Tempo (BPM)', h('span', null, bpm, h('button', { class: 'sm', title: 'Use the tempo found in the audio', onclick: () => { if (S.bpmEst) { S.bpm = S.bpmEst; bpm.value = S.bpm; this.update(); } } }, 'Use detected' + (S.bpmEst ? ' (' + S.bpmEst + ')' : ''))), 'Notes snap to this tempo'),
       row('Snap to', sel([['0.5', '1/8 notes'], ['0.25', '1/16 notes'], ['1', '1/4 notes'], ['0.3333333', '1/8 triplets']], S.grid, v => { S.grid = +v; this.update(); })),
       row('Timing strength', h('span', null, h('input', { type: 'range', min: 0, max: 100, value: S.strength, oninput: e => { S.strength = +e.target.value; S.sv.textContent = S.strength + '%'; this.update(); } }), (S.sv = h('b', null, S.strength + '%'))), '100% = exactly on the grid, lower keeps your feel'));
+    const simp = row('Simplify', h('span', null, h('input', { type: 'range', min: 0, max: 100, value: S.simplify, oninput: e => { S.simplify = +e.target.value; S.simv.textContent = S.simplify; this.update(); } }), (S.simv = h('b', null, String(S.simplify)))), S.type === 'chords' ? 'Higher = fewer chord changes' : 'Higher = fewer, longer notes (less vibrato, breaths and blips)');
+    if (S.type === 'bass' || S.type === 'melody' || S.type === 'chords') b.append(simp);
+    if (S.type === 'bass' || S.type === 'melody') b.append(row('Shortest note', sel([['0', 'Automatic'], ['0.25', '1/16 note'], ['0.5', '1/8 note'], ['1', '1/4 note']], S.minNote, v => { S.minNote = +v; this.update(); }), 'Shorter notes are removed or merged'));
     if (S.type === 'bass' || S.type === 'melody') b.append(row('Key', sel(keyOpts, S.key, v => { S.key = v; this.update(); }), 'Notes snap to the scale'), row('Octave', sel([['auto', 'Automatic'], ['-1', 'Down one octave'], ['0', 'As sung'], ['1', 'Up one octave']], S.octave, v => { S.octave = v; this.update(); }), S.type === 'bass' ? 'Automatic moves a sung bass into real bass range' : ''));
-    if (S.type === 'chords') b.append(row('Key', sel(keyOpts, S.key, v => { S.key = v; this.update(); }), 'Helps pick the likelier chords'), row('Chord types', sel([['triads', 'Major / minor'], ['sevenths', 'Plus 7ths'], ], S.vocab, v => { S.vocab = v; this.update(); })), row('Chord length', sel([['1', 'One beat'], ['2', 'Two beats'], ['4', 'One bar']], S.seg, v => { S.seg = +v; this.update(); })));
+    if (S.type === 'chords') b.append(row('Key', sel(keyOpts, S.key, v => { S.key = v; this.update(); }), 'Helps pick the likelier chords'), row('Chord types', sel([['triads', 'Simple triads'], ['sevenths', 'Plus 7ths']], S.vocab, v => { S.vocab = v; this.update(); })), row('Chord length', sel([['1', 'One beat'], ['2', 'Two beats'], ['4', 'One bar']], S.seg, v => { S.seg = +v; this.update(); }), 'How often a chord can change'), row('Stay in the key', h('input', { type: 'checkbox', checked: S.stayInKey, onchange: e => { S.stayInKey = e.target.checked; this.update(); } }), 'Only chords that belong to the key'), row('I know the chords', h('input', { type: 'text', placeholder: 'e.g. Cm Ab Eb Bb', value: S.progTxt, style: 'width:180px', onchange: e => { S.progTxt = e.target.value; this.update(); } }), 'Optional: type them and only those are used'));
     if (S.type === 'drums') b.append(row('Drum kit', h('span', null, this.getKit() ? '✓ using your kit setup ' : 'not set up (guessing) ', h('button', { class: 'sm', onclick: () => this.kitSetup() }, 'Kit setup…'))));
     b.append(row('Sound', sel(Object.keys(INSTS).map(k => [k, INSTS[k]]), S.inst, v => { S.inst = v; this.stopPrev(); })), (S.sum = h('div', { class: 'a2msum' }, '')),
       h('div', { class: 'row', style: 'margin-top:10px;flex-wrap:wrap' }, h('button', { onclick: () => this.preview() }, '▶ Preview'), h('button', { class: 'primary', onclick: () => this.create() }, 'Create MIDI track'), h('button', { onclick: () => { S.feat = null; S.res = null; this.stopPrev(); this.render(); } }, 'Listen again')));
@@ -2830,7 +2878,7 @@ const A2MUI = {
     } catch (e) { console.error(e); if (S.prog) S.prog.textContent = 'Could not analyse this clip: ' + e.message; }
   },
   opts() {
-    const S = this.st, o = { bpm: S.bpm || null, grid: S.grid, strength: S.strength / 100, octave: S.octave === 'auto' ? 'auto' : +S.octave, vocab: S.vocab, seg: S.seg };
+    const S = this.st, o = { bpm: S.bpm || null, grid: S.grid, strength: S.strength / 100, octave: S.octave === 'auto' ? 'auto' : +S.octave, vocab: S.vocab, seg: S.seg, simplify: S.simplify, minNote: S.minNote, stayInKey: S.stayInKey, prog: A2M.parseProg(S.progTxt) };
     o.key = S.key === 'auto' ? 'auto' : S.key === 'none' ? 'none' : { root: +S.key.split(':')[0], mode: S.key.split(':')[1] }; if (S.type === 'drums') o.kit = this.getKit(); return o;
   },
   update() {
@@ -2838,7 +2886,7 @@ const A2MUI = {
     const r = S.res; if (!S.sum) return;
     if (!r || r.info && r.info.empty) { S.sum.textContent = 'No notes found. Try a louder or cleaner take, or a different type.'; return; }
     if (S.bpmEl && !S.bpm) S.bpmEl.value = r.bpm;
-    S.sum.textContent = `Found ${r.notes.length} ${S.type === 'chords' ? 'chord notes (' + r.chords.length + ' chords)' : 'notes'} at ${r.bpm} BPM` + (r.key ? ' · key ' + A2M.keyName(r.key) : '') + (S.type === 'chords' ? ' · ' + r.chords.slice(0, 8).map(c => c.name).join(' ') + (r.chords.length > 8 ? ' …' : '') : '');
+    S.sum.textContent = `Found ${r.notes.length} ${S.type === 'chords' ? 'chord notes (' + r.chords.length + ' chords)' : 'notes'} at ${r.bpm} BPM` + (r.key ? ' · key ' + A2M.keyName(r.key) : '') + (S.type === 'chords' ? ' · ' + r.chords.slice(0, 12).map(c => c.name).join(' ') + (r.chords.length > 12 ? ' …' : '') : '');
   },
   stopPrev() { const S = this.st; if (!S) return; for (const v of S.voices) { try { v.stop(); } catch (e) { } } S.voices = []; },
   async preview() {
@@ -3100,6 +3148,8 @@ const ROLL = {
     for (let b = Math.floor(b0 / sub) * sub; b <= b1; b += sub) { const x = Math.round(this.b2x(b)); if (x < GUT) continue; const bar = Math.abs(b / 4 - Math.round(b / 4)) < 1e-6, beat = Math.abs(b - Math.round(b)) < 1e-6; g.fillStyle = bar ? 'rgba(255,255,255,.22)' : beat ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.045)'; g.fillRect(x, RUL, 1, Hh - RUL); }
     g.fillStyle = '#16161d'; g.fillRect(GUT, 0, W - GUT, RUL); g.fillStyle = '#aaa'; g.font = '11px system-ui'; g.textBaseline = 'middle';
     for (let b = Math.max(0, b0); b <= b1; b++) { const x = this.b2x(b); if (x < GUT) continue; if (b % 4 === 0) { g.fillStyle = '#ddd'; g.fillText(String(b / 4 + 1), x + 3, RUL / 2); g.fillRect(x, 4, 1, RUL - 8); } else { g.fillStyle = '#666'; g.fillRect(x, RUL - 7, 1, 5); } }
+    // chord names along the top
+    if ((c.chords || []).length) { g.font = 'bold 11px system-ui'; g.textBaseline = 'middle'; for (const k of c.chords) { const x = this.b2x(k.t), x2 = this.b2x(k.t + k.d); if (x2 < GUT || x > W) continue; const xs = Math.max(x, GUT); g.fillStyle = hexA(col, 0.28); g.fillRect(xs + 1, 3, Math.max(2, x2 - xs - 2), RUL - 6); g.fillStyle = '#fff'; g.save(); g.beginPath(); g.rect(xs, 0, Math.max(0, x2 - xs - 2), RUL); g.clip(); g.fillText(k.name, xs + 5, RUL / 2); g.restore(); } }
     // clip end
     const ex = this.b2x(c.len / SR * c.bpm / 60); if (ex > GUT && ex < W) { g.fillStyle = 'rgba(239,83,80,.6)'; g.fillRect(ex, RUL, 2, Hh - RUL); }
     // notes
@@ -3244,7 +3294,7 @@ function newMidiTrackUI(e) {
 }
 function helpUI() {
   const rows = [['Space', 'Play / pause'], ['S', 'Split at playhead'], ['Delete', 'Delete clip / highlighted section'], ['Ctrl+Z / Ctrl+Shift+Z', 'Undo / redo'], ['Ctrl+C / X / V', 'Copy / cut / paste clips'], ['Ctrl+D', 'Duplicate clip'], ['Ctrl+A', 'Select all clips'],
-    ['M', 'Add marker at playhead'], ['V / R', 'Clip tool / Range tool'], ['+ / −', 'Zoom in / out'], ['← →', 'Nudge playhead (Shift = 1 s)'], ['Home', 'Playhead to start'], ['Ctrl + wheel', 'Zoom'], ['Shift + wheel', 'Scroll sideways'], ['Drag clip edge', 'Trim'], ['Drag the dots on a clip', 'Fade in / out'], ['Drag on empty lane', 'Highlight a section'], ['Click the time', 'Type a time (mm:ss.ss) to jump'], ['Right-click a highlight', 'Mute that section (Project ▸ Mute list… to edit times)'], ['Master button (top bar)', 'Master one finished WAV, or this project\'s mix'], ['Project ▸ Drum kit setup…', 'Do this once: record or load a kick, snare and hat so drum conversion knows your sounds'], ['Project ▸ Audio → MIDI…', 'Pick a clip, choose drums / bass / melody / chords, preview, then Create'], ['Double-click a MIDI clip', 'Open the piano roll'], ['Piano roll: double-click', 'Add a note; drag to move, drag the right edge to resize'], ['Piano roll: drag empty space', 'Select several notes; Delete removes, ← → ↑ ↓ nudge, Ctrl+A all, Ctrl+D duplicate'], ['Project ▸ Export MIDI file…', 'Standard MIDI file (tempo, key, chord markers) for other apps']];
+    ['M', 'Add marker at playhead'], ['V / R', 'Clip tool / Range tool'], ['+ / −', 'Zoom in / out'], ['← →', 'Nudge playhead (Shift = 1 s)'], ['Home', 'Playhead to start'], ['Ctrl + wheel', 'Zoom'], ['Shift + wheel', 'Scroll sideways'], ['Drag clip edge', 'Trim'], ['Drag the dots on a clip', 'Fade in / out'], ['Drag on empty lane', 'Highlight a section'], ['Click the time', 'Type a time (mm:ss.ss) to jump'], ['Right-click a highlight', 'Mute that section (Project ▸ Mute list… to edit times)'], ['Master button (top bar)', 'Master one finished WAV, or this project\'s mix'], ['Project ▸ Drum kit setup…', 'Do this once: record or load a kick, snare and hat so drum conversion knows your sounds'], ['Project ▸ Audio → MIDI…', 'Pick a clip, choose drums / bass / melody / chords, preview, then Create'], ['Audio → MIDI: Simplify slider', 'Higher = fewer, longer notes (smooths vibrato and breaths). For chords: fewer chord changes. Type the chords you know to lock them in'], ['Double-click a MIDI clip', 'Open the piano roll'], ['Piano roll: double-click', 'Add a note; drag to move, drag the right edge to resize'], ['Piano roll: drag empty space', 'Select several notes; Delete removes, ← → ↑ ↓ nudge, Ctrl+A all, Ctrl+D duplicate'], ['Project ▸ Export MIDI file…', 'Standard MIDI file (tempo, key, chord markers) for other apps']];
   modal('Shortcuts', h('div', null, rows.map(r => h('div', { class: 'li' }, h('b', null, r[0]), h('span', { class: 'dim' }, r[1])))), [{ label: 'Close', primary: true }]);
 }
 function syncUndoBtns() { const u = $('#undo'), r = $('#redo'); if (u) { u.disabled = !H.undo.length; r.disabled = !H.redo.length; } }
