@@ -1646,6 +1646,7 @@ function trackMenu(t, anchor) {
     t.kind === 'midi' ? { label: 'New empty MIDI clip at playhead', fn: () => Ops.addEmptyMidiClip(t.id) } : { label: 'Import audio here…', fn: () => pickFiles(f => Ops.importInto(f, t)) },
     ...(t.kind === 'midi' ? Object.keys(INSTS).map(k => ({ label: (t.inst === k ? '● ' : '○ ') + 'Sound: ' + INSTS[k], fn: () => Ops.setInst(t.id, k) })) : []),
     { label: 'Trim track to exact length…', fn: () => Ops.trimTrackUI(t.id) },
+    ...(t.kind === 'midi' ? [{ label: 'Export track as MIDI (.mid)', fn: () => MIDI.save(t) }] : []),
     { label: 'Export track as WAV (with effects)', fn: () => exportTrackWav(t, true) },
     { label: 'Export track as WAV (without effects)', fn: () => exportTrackWav(t, false) },
   ];
@@ -3101,10 +3102,10 @@ const MIDI = {
     const head = [77, 84, 104, 100, 0, 0, 0, 6, 0, 1, ((tracks.length + 1) >> 8) & 255, (tracks.length + 1) & 255, PPQ >> 8, PPQ & 255];
     return new Uint8Array([...head, ...mtrk(ev0), ...body.flat()]);
   },
-  async save() {
-    const tr = this.midiTracks(); if (!tr.length) { toast('No MIDI notes to export yet'); return; }
+  async save(only) {
+    const tr = only ? (this.midiTracks().includes(only) ? [only] : []) : this.midiTracks(); if (!tr.length) { toast(only ? 'This track has no MIDI notes to export yet' : 'No MIDI notes to export yet'); return; }
     const bpms = new Set(); for (const t of tr) for (const c of t.clips) if (c.midi) bpms.add(c.bpm);
-    const bytes = this.bytes(tr), name = ((P.name || 'project').replace(/[^\w\- ]+/g, '').trim() || 'project') + '.mid';
+    const bytes = this.bytes(tr), name = (((only ? only.name : P.name) || 'project').replace(/[^\w\- ]+/g, '').trim() || 'project') + '.mid';
     try { const sink = await openSink(name, 'midi'); await sink.write(bytes); await sink.close(); toast(`Exported ${name} — ${tr.length} track${tr.length > 1 ? 's' : ''} at ${this.tempo()} BPM` + (bpms.size > 1 ? ' (clips had different tempos; real timing kept)' : '')); }
     catch (e) { if (e.name !== 'AbortError') toast('MIDI export failed: ' + e.message, 5000); }
   }
