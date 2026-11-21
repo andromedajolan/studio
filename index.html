@@ -146,6 +146,32 @@ textarea.mutes{width:100%;box-sizing:border-box;background:#000;border:1px solid
 .a2m .a2mrow{display:flex;align-items:center;gap:10px;margin:6px 0;flex-wrap:wrap}
 .a2m .a2mrow label{width:110px;color:var(--dim,#9a9aa6)}
 .a2m .a2msum{margin:10px 0 4px;padding:8px 10px;background:#17171d;border-radius:6px}
+
+.a2m input[type=text],.a2m input[type=number]{color:#111;background:#fff;border-radius:4px;padding:2px 6px}
+
+#lyr{position:fixed;left:0;right:0;top:54px;bottom:0;z-index:22;background:var(--bg);flex-direction:column;min-height:0}
+#lyr .rbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;background:var(--p1);border-bottom:1px solid var(--ln)}
+#lyr input[type=text],#lyr select,#lyr textarea{background:var(--p2);color:var(--tx);border:1px solid var(--ln);border-radius:5px;padding:3px 6px}
+#lyr .lyrTapArea{padding:10px 14px;border-bottom:1px solid var(--ln);background:var(--p1)}
+#lyr .lyrBig{text-align:center;margin-bottom:8px}
+#lyr .lyrPill{display:inline-block;padding:3px 12px;border-radius:12px;font-size:12px;font-weight:700;margin-bottom:6px;background:var(--p3);color:var(--dim)}
+#lyr .lyrPill.armed{background:#12384d;color:var(--ac)}#lyr .lyrPill.timing{background:#4d3512;color:var(--warn)}#lyr .lyrPill.done{background:#123d2a;color:var(--ok)}
+#lyr .lyrNow{font-size:26px;font-weight:700;min-height:34px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}#lyr .lyrNow.open{color:var(--warn)}
+#lyr .lyrNext{font-size:20px;min-height:28px;color:var(--ac);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#lyr .lyrCtl,#lyr .lyrCtl2{display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:center;margin-top:4px}
+#lyr .lyrTap{min-width:110px;padding:10px 18px;border-radius:10px;border:2px solid;font-weight:700;font-size:14px;cursor:pointer;color:var(--tx);background:var(--p2);touch-action:manipulation;user-select:none}
+#lyr .lyrTap small{display:block;font-weight:400;font-size:11px;opacity:.8}#lyr .lyrTap.start{border-color:var(--ac)}#lyr .lyrTap.end{border-color:var(--warn)}
+#lyr .lyrTap:active{filter:brightness(1.5)}
+#lyr .lyrCv{width:100%;height:150px;flex:none;display:block;touch-action:none;border-bottom:1px solid var(--ln)}
+#lyr .lyrTools{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--ln)}
+#lyr .lyrList{flex:1;min-height:0;overflow:auto;padding:6px 8px}
+#lyr .lyrRow{display:flex;align-items:center;gap:4px;padding:3px 6px;border-radius:6px;border:1px solid transparent;cursor:pointer}
+#lyr .lyrRow:hover{background:var(--p1)}#lyr .lyrRow.now{background:#16222b}#lyr .lyrRow.sel{border-color:var(--ln)}
+#lyr .lyrRow.armed{border-color:var(--ac);background:#0f2430}#lyr .lyrRow.open{border-color:var(--warn);background:#2a2110}
+#lyr .lyrRow.head{background:var(--p1);cursor:default}#lyr .lyrRow.head .lyrTxt{font-weight:700;color:var(--ac)}
+#lyr .lyrN{width:26px;text-align:right;color:var(--dim);font-size:12px}
+#lyr .lyrTxt{flex:1;min-width:120px}#lyr .lyrT{width:88px;text-align:center;font-family:ui-monospace,monospace}
+#lyr .nb{padding:1px 6px}
 </style></head>
 <body>
 <div id="app">
@@ -172,7 +198,7 @@ textarea.mutes{width:100%;box-sizing:border-box;background:#000;border:1px solid
  </div>
 </div>
 <div id="mview" style="display:none"></div>
-<div id="roll" style="display:none"></div>
+<div id="roll" style="display:none"></div><div id="lyr" style="display:none"></div>
 <div id="toast"></div><div id="drop">Drop audio to import</div>
 <script>
 'use strict';
@@ -3224,6 +3250,310 @@ const ROLL = {
 // the global undo/redo replaces the project objects: drop stale note selections
 const _afterEdit = afterEdit; afterEdit = function (o) { _afterEdit(o); if (ROLL.open_) { const f = ROLL.find(); if (f) ROLL.sel = new Set([...ROLL.sel].filter(n => f.c.notes.includes(n))); } };
 
+// ---- Lyrics timing: tap lyrics against the song, edit the cues, export .srt / .lrc ---------------------------
+// Separate panel. Nothing here runs, and nothing is added to a project, until the panel is used.
+// Data: P.lyrics (see docs/lyrics-timing-section.md), saved inside the normal project.json.
+const LYR_PFX = 'daw.';                         // localStorage prefix for this panel's own settings (key bindings)
+const LYR_KEYS = LYR_PFX + 'lyrics.keys';
+const LYR_GAP = 0.001;                          // an unended line stops this long before the next start tap
+const LYR_AR = 24000;                           // sample rate of the timing copy of the audio (mono, 16-bit)
+
+const lyrSec = s => { s = Math.max(0, s); const m = Math.floor(s / 60); return m + ':' + (s - m * 60).toFixed(3).padStart(6, '0'); };
+const lyrParse = str => { str = String(str).trim().replace(',', '.'); if (!str) return null; const p = str.split(':'); if (p.length > 3) return null; let s = 0; for (const x of p) { const v = parseFloat(x); if (isNaN(v) || v < 0) return null; s = s * 60 + v; } return Math.round(s * 1000) / 1000; };
+const lyrR = v => Math.round(v * 1000) / 1000;
+const lyrTC = (s, comma) => { const ms = Math.round(Math.max(0, s) * 1000), hh = Math.floor(ms / 3600000), mm = Math.floor(ms % 3600000 / 60000), ss = Math.floor(ms % 60000 / 1000), mi = ms % 1000; return pad2(hh) + ':' + pad2(mm) + ':' + pad2(ss) + (comma ? ',' : '.') + String(mi).padStart(3, '0'); };
+const KEYNAME = c => ({ ControlLeft: 'Left Ctrl', ControlRight: 'Right Ctrl', AltLeft: 'Left Alt', AltRight: 'Right Alt', ShiftLeft: 'Left Shift', ShiftRight: 'Right Shift', MetaLeft: 'Search / Meta', MetaRight: 'Right Meta', Space: 'Space', Enter: 'Enter' }[c] || String(c).replace(/^Key/, '').replace(/^Digit/, ''));
+
+const LYR = {
+  open_: false, a: null, url: null, dur: 0, env: null, selIdx: -1, armed: -1, open: -1, tapStack: [], editStack: [], rate: 1,
+  pps: 0, sx: 0, drag: null, stopAt: null, raf: 0, srcKind: 'mix', srcId: null, keys: null, capturing: null, busy: false,
+  get el() { return document.getElementById('lyr'); },
+  get L() { return P.lyrics; },
+  get cueIdx() { const r = []; (P.lyrics ? P.lyrics.lines : []).forEach((l, i) => { if (l.type === 'cue') r.push(i); }); return r; },
+
+  // ---- data
+  ensure() { if (!P.lyrics) P.lyrics = { v: 1, title: '', track: '', source: { kind: 'mix', id: null }, offset: 0, lines: [] }; return P.lyrics; },
+  loadKeys() { let k = null; try { k = JSON.parse(localStorage.getItem(LYR_KEYS) || 'null'); } catch (e) { } this.keys = k && k.start && k.end && k.start !== k.end ? k : { start: 'ControlLeft', end: 'AltLeft' }; },
+  saveKeys() { try { localStorage.setItem(LYR_KEYS, JSON.stringify(this.keys)); } catch (e) { } },
+  changed() { Save.mark(); },
+  snapEdit() { if (!P.lyrics) return; this.editStack.push(JSON.stringify(P.lyrics.lines)); if (this.editStack.length > 60) this.editStack.shift(); },
+  undoEdit() { if (!this.editStack.length) { toast('Nothing to undo'); return; } this.L.lines = JSON.parse(this.editStack.pop()); this.armed = this.firstUntimed(); this.open = -1; this.selIdx = -1; this.changed(); this.renderList(); this.draw(); this.updateBig(); },
+  firstUntimed() { const L = this.L; if (!L) return -1; for (let i = 0; i < L.lines.length; i++) if (L.lines[i].type === 'cue' && L.lines[i].start == null) return i; return -1; },
+  nextCue(i) { const L = this.L; for (; i < L.lines.length; i++) if (L.lines[i].type === 'cue') return i; return -1; },
+  setLines(lines, meta) {
+    const L = this.ensure(); this.snapEdit(); L.lines = lines.map(x => ({ type: x.type, text: x.text, start: null, end: null }));
+    if (meta && meta.title && !L.title) L.title = meta.title; if (meta && meta.songRef) L.songRef = meta.songRef; else if (meta) delete L.songRef;
+    this.armed = this.firstUntimed(); this.open = -1; this.tapStack = []; this.selIdx = -1; this.changed(); this.renderAll();
+  },
+  // pasted text: one line per cue; a line that is only [Something] is a heading, blank lines are ignored
+  parsePaste(txt) { const out = []; for (let ln of String(txt).replace(/\r/g, '').split('\n')) { ln = ln.trim(); if (!ln) continue; const m = /^\[([^\]]*)\]$/.exec(ln); if (m) out.push({ type: 'heading', text: m[1].trim() }); else out.push({ type: 'cue', text: ln }); } return out; },
+  // Stilus backup ({"format":"lyricwriter-backup"}): find the songs, use the clean lyrics, sections become headings
+  stilusSongs(j) {
+    let s = j && (j.songs || (j.data && j.data.songs) || j.items); if (s && !Array.isArray(s) && typeof s === 'object') s = Object.keys(s).map(k => Object.assign({ id: k }, s[k]));
+    if (!s && j && (j.lyrics || j.clean || j.sections)) s = [j]; return Array.isArray(s) ? s : [];
+  },
+  stilusLines(song) {
+    const str = v => (typeof v === 'string' ? v : Array.isArray(v) ? v.map(x => typeof x === 'string' ? x : (x && (x.text || x.clean || x.lyrics)) || '').join('\n') : '');
+    const secs = song.sections || (song.lyrics && song.lyrics.sections) || (song.clean && song.clean.sections);
+    let out = [];
+    if (Array.isArray(secs) && secs.length) {
+      for (const sc of secs) { const nm = (sc.name || sc.title || sc.label || sc.header || sc.type || '').toString().trim(); if (nm) out.push({ type: 'heading', text: nm.replace(/^\[|\]$/g, '') });
+        const body = str(sc.clean != null ? sc.clean : sc.lines != null ? sc.lines : sc.text != null ? sc.text : sc.lyrics); out = out.concat(this.parsePaste(body).filter(x => x.type === 'cue')); }
+      return out;
+    }
+    let t = song.clean != null ? song.clean : song.cleanLyrics != null ? song.cleanLyrics : song.lyricsClean != null ? song.lyricsClean : song.lyrics != null ? (typeof song.lyrics === 'object' && !Array.isArray(song.lyrics) ? (song.lyrics.clean != null ? song.lyrics.clean : song.lyrics.text) : song.lyrics) : song.text != null ? song.text : song.body;
+    return this.parsePaste(str(t));
+  },
+
+  // ---- opening and the audio copy
+  async open_panel() {
+    if (!P) return; if (Engine.rec) { toast('Stop recording first'); return; } Engine.pause(); this.loadKeys();
+    const L = this.L; if (L && L.source) { this.srcKind = L.source.kind || 'mix'; this.srcId = L.source.id || null; } else { this.srcKind = 'mix'; this.srcId = null; const sc = [...(UI.selClips || [])][0]; if (sc && findClip(sc) && !findClip(sc).c.midi) { this.srcKind = 'clip'; this.srcId = sc; } }
+    this.open_ = true; this.editStack = []; this.tapStack = []; this.selIdx = -1; this.rate = 1; this.sx = 0;
+    this.armed = L ? this.firstUntimed() : -1; this.open = -1; this.build(); this.el.style.display = 'flex'; this.size(); this.loop();
+    if (!this.keyBound) { this.keyBound = true; window.addEventListener('keydown', e => this.onKey(e), true); window.addEventListener('keyup', e => this.onKeyUp(e), true); new ResizeObserver(() => this.open_ && this.size()).observe(document.body); }
+    this.prepare();
+  },
+  close() { if (!this.open_) return; this.stopAudio(); this.open_ = false; this.el.style.display = 'none'; cancelAnimationFrame(this.raf); this.releaseAudio(); this.changed(); },
+  releaseAudio() { if (this.url) { URL.revokeObjectURL(this.url); this.url = null; } this.a = null; this.env = null; this.dur = 0; },
+  stopAudio() { if (this.a) { try { this.a.pause(); } catch (e) { } } this.stopAt = null; },
+  sourceList() { const r = [['mix', null, 'Mixdown (all audible tracks)']]; for (const t of P.tracks) if (!t.kind || t.kind !== 'midi') { if (t.clips.some(c => !c.midi)) r.push(['track', t.id, 'Track: ' + t.name]); } for (const t of P.tracks) for (const c of t.clips) if (!c.midi) r.push(['clip', c.id, 'Clip: ' + (c.name || t.name) + ' (' + t.name + ')']); return r; },
+  async prepare() {
+    if (this.busy) return; this.busy = true; this.stopAudio(); this.releaseAudio(); this.setStatus('Preparing audio…'); const pr = progress('Preparing audio for timing');
+    try {
+      let acc = null, n24 = 0;
+      const add = buf => { const L = buf.getChannelData(0), R = buf.getChannelData(1), n = Math.floor(buf.length / 2); if (!acc) { acc = new Float32Array(n + 1); n24 = n; } else if (n > acc.length) { const b = new Float32Array(n + 1); b.set(acc); acc = b; n24 = Math.max(n24, n); } for (let i = 0; i < n; i++) acc[i] += (L[2 * i] + R[2 * i] + L[2 * i + 1] + R[2 * i + 1]) * 0.25; n24 = Math.max(n24, n); };
+      if (this.srcKind === 'clip') { const f = this.srcId && findClip(this.srcId); if (!f) throw new Error('That clip no longer exists'); pr.set(0.2, 'Reading clip'); add(await clipBuffer(f.c)); }
+      else if (this.srcKind === 'track') { const t = P.tracks.find(t => t.id === this.srcId); if (!t) throw new Error('That track no longer exists'); const len = trackEnd(t); pr.set(0.2, 'Rendering ' + t.name); add(await renderTrack(t, len, true)); }
+      else { const solo = P.tracks.some(t => t.solo), ts = P.tracks.filter(t => (!t.kind || true) && isAudible(t, solo) && t.clips.length), len = projectEnd(); if (!ts.length || !len) throw new Error('No audible tracks to time against'); for (let i = 0; i < ts.length; i++) { pr.set(i / ts.length, `Rendering ${ts[i].name} (${i + 1}/${ts.length})`); add(await renderTrack(ts[i], len, true)); await sleep(0); } }
+      pr.set(0.9, 'Building waveform');
+      const n = n24, wav = new DataView(new ArrayBuffer(44 + n * 2)), W = (o, s) => { for (let i = 0; i < s.length; i++) wav.setUint8(o + i, s.charCodeAt(i)); };
+      W(0, 'RIFF'); wav.setUint32(4, 36 + n * 2, true); W(8, 'WAVEfmt '); wav.setUint32(16, 16, true); wav.setUint16(20, 1, true); wav.setUint16(22, 1, true); wav.setUint32(24, LYR_AR, true); wav.setUint32(28, LYR_AR * 2, true); wav.setUint16(32, 2, true); wav.setUint16(34, 16, true); W(36, 'data'); wav.setUint32(40, n * 2, true);
+      const per = 240, ne = Math.ceil(n / per), mn = new Float32Array(ne), mx = new Float32Array(ne);
+      for (let i = 0; i < n; i++) { const v = clamp(acc[i], -1, 1); wav.setInt16(44 + i * 2, Math.round(v * 32767), true); const k = (i / per) | 0; if (v < mn[k]) mn[k] = v; if (v > mx[k]) mx[k] = v; }
+      acc = null; this.env = { mn, mx, per: per / LYR_AR }; this.dur = n / LYR_AR;
+      this.url = URL.createObjectURL(new Blob([wav.buffer], { type: 'audio/wav' })); const a = new Audio(this.url); a.preload = 'auto'; a.preservesPitch = true; a.webkitPreservesPitch = true; a.playbackRate = this.rate;
+      a.addEventListener('ended', () => { this.onEnded(); }); a.addEventListener('play', () => this.updatePlayBtn()); a.addEventListener('pause', () => this.updatePlayBtn()); this.a = a;
+      this.fit(); this.setStatus(`Ready — ${lyrSec(this.dur)} of audio. Press Play, then tap.`);
+    } catch (e) { console.error(e); this.setStatus('Could not prepare audio: ' + e.message, true); toast('Could not prepare audio: ' + e.message, 5000); }
+    finally { pr.close(); this.busy = false; this.draw(); this.updatePlayBtn(); }
+  },
+  setStatus(t, err) { if (this.status) { this.status.textContent = t; this.status.style.color = err ? 'var(--rec)' : ''; } },
+  now() { return this.a ? this.a.currentTime : 0; },
+  playing() { return !!this.a && !this.a.paused; },
+
+  // ---- transport
+  toggle() { if (!this.a) return; if (this.a.paused) { this.stopAt = null; this.a.playbackRate = this.rate; this.a.play(); } else this.a.pause(); },
+  seek(t) { if (!this.a) return; this.a.currentTime = clamp(t, 0, this.dur); this.draw(); },
+  playCue(i) { const l = this.L.lines[i]; if (!this.a || l.start == null) { toast('This line has no time yet'); return; } this.a.currentTime = l.start; this.a.playbackRate = this.rate; this.stopAt = l.end != null ? l.end : l.start + 4; this.a.play(); this.selIdx = i; this.syncSel(); },
+  setRate(r) { this.rate = r; if (this.a) this.a.playbackRate = r; if (this.rateLbl) this.rateLbl.textContent = r.toFixed(2) + '×'; },
+  onEnded() { const L = this.L; if (L && this.open >= 0 && L.lines[this.open].end == null) { L.lines[this.open].end = lyrR(this.dur); this.open = -1; this.changed(); this.syncRow(this.open); } this.updatePlayBtn(); this.updateBig(); this.renderList(); },
+  updatePlayBtn() { if (this.playBtn) this.playBtn.textContent = this.playing() ? '⏸ Pause' : '▶ Play'; },
+  loop() { const f = () => { if (!this.open_) return; if (this.a && this.stopAt != null && this.a.currentTime >= this.stopAt) { this.a.pause(); this.stopAt = null; } this.tick(); this.raf = requestAnimationFrame(f); }; this.raf = requestAnimationFrame(f); },
+  tick() {
+    const t = this.now(); if (this.timeLbl) this.timeLbl.textContent = lyrSec(t) + ' / ' + lyrSec(this.dur);
+    if (this.playing() && this.pps > 0) { const vw = this.cvW / this.pps; if (t < this.sx || t > this.sx + vw * 0.9) this.sx = Math.max(0, t - vw * 0.1); }
+    this.draw(); const L = this.L; if (!L) return; let cur = -1; for (let i = 0; i < L.lines.length; i++) { const l = L.lines[i]; if (l.type === 'cue' && l.start != null && t >= l.start && (l.end == null ? t < l.start + 5 : t < l.end)) { cur = i; break; } }
+    if (cur !== this.curRow) { this.curRow = cur; this.rows && this.rows.forEach((r, i) => r && r.classList.toggle('now', i === cur)); }
+  },
+
+  // ---- tapping
+  pushTap() { const L = this.L; this.tapStack.push({ lines: JSON.stringify(L.lines), armed: this.armed, open: this.open }); if (this.tapStack.length > 300) this.tapStack.shift(); },
+  tapStart() {
+    const L = this.L; if (!L || this.armed < 0 || !this.a) return false; const t = this.now(); this.pushTap();
+    if (this.open >= 0) { const o = L.lines[this.open]; if (o.end == null) o.end = lyrR(Math.max(o.start + LYR_GAP, t - LYR_GAP)); this.syncRow(this.open); }
+    const l = L.lines[this.armed]; l.start = lyrR(t); l.end = null; this.open = this.armed; this.syncRow(this.armed); this.armed = this.nextCue(this.armed + 1); this.afterTap(); return true;
+  },
+  tapEnd() {
+    const L = this.L; if (!L || this.open < 0 || !this.a) return false; const t = this.now(); this.pushTap(); const o = L.lines[this.open]; o.end = lyrR(Math.max(o.start + LYR_GAP, t)); const i = this.open; this.open = -1; this.syncRow(i); this.afterTap(); return true;
+  },
+  afterTap() { this.changed(); this.updateBig(); this.markArmed(); this.draw(); },
+  undoTap() { const s = this.tapStack.pop(); if (!s) { toast('No taps to undo'); return; } this.L.lines = JSON.parse(s.lines); this.armed = s.armed; this.open = s.open; this.changed(); this.renderList(); this.updateBig(); this.draw(); },
+  restartFrom(n) { // n = 1-based cue number
+    const L = this.L; const ci = this.cueIdx; if (!L || n < 1 || n > ci.length) { toast('No such line'); return; } const idx = ci[n - 1], old = L.lines[idx], prev = ci[n - 2] != null ? L.lines[ci[n - 2]] : null;
+    this.pushTap(); const target = old.start != null ? old.start : prev ? (prev.end != null ? prev.end : prev.start) : null;
+    for (let i = idx; i < L.lines.length; i++) if (L.lines[i].type === 'cue') { L.lines[i].start = null; L.lines[i].end = null; }
+    this.armed = idx; this.open = -1; this.changed(); this.renderList(); this.updateBig(); this.draw(); if (target != null && this.a) { this.seek(Math.max(0, target - 2)); }
+    toast(`Line ${n} is armed — it and everything after it were cleared (Undo tap brings them back)`, 4200);
+  },
+  // keys: handled as keydown on the bound keys only; no auto-repeat; default behaviour (e.g. the Alt menu) is cancelled
+  onKey(e) {
+    if (!this.open_) return;
+    if (this.capturing) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); if (e.code === 'Escape') { this.capturing = null; this.refreshKeysUI(); return; } const other = this.capturing === 'start' ? 'end' : 'start'; if (e.code === this.keys[other]) { toast('That key is already used for ' + other); return; } this.keys[this.capturing] = e.code; this.capturing = null; this.saveKeys(); this.refreshKeysUI(); return; }
+    const inText = e.target && e.target.matches && e.target.matches('input[type=text],input:not([type]),textarea,select');
+    if (e.code === this.keys.start || e.code === this.keys.end) {
+      e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); if (e.repeat) return;
+      if (inText && !this.playing()) return; if (!this.playing()) return;
+      if (e.code === this.keys.start) this.tapStart(); else this.tapEnd(); return;
+    }
+    if (inText) { e.stopPropagation(); return; }
+    e.stopPropagation(); if (e.code === 'Space') { e.preventDefault(); this.toggle(); }
+  },
+  onKeyUp(e) { if (!this.open_) return; if (e.code === this.keys.start || e.code === this.keys.end || this.capturing) { e.preventDefault(); e.stopPropagation(); } },
+
+  // ---- editing
+  setTime(i, which, v) { const l = this.L.lines[i]; if (v === undefined) { this.snapEdit(); if (which === 's') { l.start = null; l.end = null; } else l.end = null; this.armed = this.firstUntimed(); this.changed(); this.syncRow(i); this.updateBig(); this.draw(); return; } if (v == null) { toast('Time not understood — use m:ss.mmm or seconds'); this.syncRow(i); return; } v = lyrR(clamp(v, 0, this.dur || 1e6)); const s = which === 's' ? v : l.start, en = which === 'e' ? v : l.end; if (s != null && en != null && en <= s) { toast('The end must come after the start'); this.syncRow(i); return; } this.snapEdit(); if (which === 's') l.start = v; else l.end = v; this.changed(); this.syncRow(i); this.draw(); },
+  nudge(i, which, d) { const l = this.L.lines[i], cur = which === 's' ? l.start : l.end; if (cur == null) { toast('No time to nudge yet'); return; } this.setTime(i, which, cur + d); },
+  merge(i) { const L = this.L, a = L.lines[i], b = L.lines[i + 1]; if (!a || a.type !== 'cue') return; if (!b || b.type !== 'cue') { toast('The next row is not a line, so there is nothing to merge'); return; }
+    this.snapEdit(); a.text = (a.text + ' ' + b.text).replace(/\s+/g, ' ').trim(); if (b.end != null) a.end = b.end; if (a.start == null) { a.start = b.start; a.end = b.end; } L.lines.splice(i + 1, 1);
+    if (this.open === i + 1) this.open = i; else if (this.open > i + 1) this.open--; this.armed = this.firstUntimed(); this.changed(); this.renderList(); this.updateBig(); this.draw(); },
+  split(i, pos) { const L = this.L, l = L.lines[i]; if (l.type !== 'cue') return; const txt = l.text; if (txt.length < 3) { toast('Line is too short to split'); return; }
+    if (pos <= 0 || pos >= txt.length) { const mid = txt.length / 2; let best = -1, bd = 1e9; for (let k = 1; k < txt.length - 1; k++) if (txt[k] === ' ' && Math.abs(k - mid) < bd) { bd = Math.abs(k - mid); best = k; } pos = best < 0 ? Math.floor(mid) : best; }
+    const a = txt.slice(0, pos).trim(), b = txt.slice(pos).trim(); if (!a || !b) { toast('Put the cursor inside the line where it should split'); return; } this.snapEdit();
+    let t = null; if (l.start != null && l.end != null) t = lyrR(clamp(l.start + (l.end - l.start) * (a.length / (a.length + b.length)), l.start + 0.01, l.end - 0.01));
+    const nl = { type: 'cue', text: b, start: t, end: l.end }; l.text = a; l.end = t != null ? lyrR(Math.max(l.start + LYR_GAP, t - LYR_GAP)) : l.end; if (t == null) { nl.start = null; nl.end = null; }
+    L.lines.splice(i + 1, 0, nl); if (this.open > i) this.open++; this.armed = this.firstUntimed(); this.changed(); this.renderList(); this.updateBig(); this.draw(); },
+  addAfter(i) { this.snapEdit(); this.ensure().lines.splice(i + 1, 0, { type: 'cue', text: '', start: null, end: null }); if (this.open > i) this.open++; this.armed = this.firstUntimed(); this.changed(); this.renderList(); this.updateBig(); },
+  del(i) { const L = this.L; this.snapEdit(); L.lines.splice(i, 1); if (this.open === i) this.open = -1; else if (this.open > i) this.open--; this.armed = this.firstUntimed(); this.changed(); this.renderList(); this.updateBig(); this.draw(); },
+  toggleType(i) { const l = this.L.lines[i]; this.snapEdit(); if (l.type === 'cue') { l.type = 'heading'; l.start = null; l.end = null; if (this.open === i) this.open = -1; } else { l.type = 'cue'; } this.armed = this.firstUntimed(); this.changed(); this.renderList(); this.updateBig(); this.draw(); },
+  bake() { const L = this.L; if (!L || !L.offset) { toast('The offset is 0 — nothing to apply'); return; } this.snapEdit(); for (const l of L.lines) if (l.type === 'cue') { if (l.start != null) l.start = lyrR(Math.max(0, l.start + L.offset)); if (l.end != null) l.end = lyrR(Math.max(l.start || 0, l.end + L.offset)); } L.offset = 0; this.offIn.value = '0'; this.changed(); this.renderList(); this.draw(); toast('Offset applied to every cue'); },
+  clearTimes() { const L = this.L; if (!L) return; this.snapEdit(); for (const l of L.lines) { l.start = null; l.end = null; } this.armed = this.firstUntimed(); this.open = -1; this.tapStack = []; this.changed(); this.renderList(); this.updateBig(); this.draw(); },
+
+  // ---- export
+  cues() {
+    const L = this.L, off = L.offset || 0, ci = this.cueIdx.map(i => L.lines[i]).filter(l => l.start != null && l.text.trim()); const out = []; let skipped = L.lines.filter(l => l.type === 'cue' && l.text.trim() && l.start == null).length;
+    for (let k = 0; k < ci.length; k++) { const l = ci[k], nx = ci[k + 1]; let s = l.start + off, e = l.end != null ? l.end + off : nx ? nx.start + off - LYR_GAP : Math.min(s + 3, this.dur ? this.dur + off : s + 3);
+      if (nx && e > nx.start + off - LYR_GAP && l.end == null) e = nx.start + off - LYR_GAP; if (e <= s) e = s + 0.05; if (e < 0) continue; s = Math.max(0, s); out.push({ s, e, text: l.text.trim() }); }
+    // no overlaps (a cue can never run into the next one)
+    for (let k = 0; k < out.length - 1; k++) if (out[k].e > out[k + 1].s) out[k].e = Math.max(out[k].s + 0.001, out[k + 1].s - LYR_GAP);
+    return { cues: out, skipped };
+  },
+  srt(c) { return c.map((q, i) => `${i + 1}\r\n${lyrTC(q.s, true)} --> ${lyrTC(q.e, true)}\r\n${q.text}\r\n`).join('\r\n'); },
+  lrc(c, title) { const t = x => { const cs = Math.round(x * 100), m = Math.floor(cs / 6000), s = Math.floor(cs % 6000 / 100); return '[' + pad2(m) + ':' + pad2(s) + '.' + pad2(cs % 100) + ']'; }; return (title ? `[ti:${title}]\r\n` : '') + c.map(q => t(q.s) + q.text).join('\r\n') + '\r\n'; },
+  fileBase() { const L = this.L, n = String(L.track || '').trim().replace(/\D/g, ''), t = safeName(L.title || P.name || 'Lyrics'); return (n ? pad2(parseInt(n, 10)) + ' - ' : '') + t; },
+  async saveText(name, text, mime) {
+    const bytes = new TextEncoder().encode(text), ext = name.slice(name.lastIndexOf('.'));
+    if (window.showSaveFilePicker && !window.__DAW_NO_PICKER) { try { const fh = await showSaveFilePicker({ suggestedName: name, types: [{ description: ext.toUpperCase().slice(1) + ' file', accept: { [mime]: [ext] } }] }); const w = await fh.createWritable(); await w.write(bytes); await w.close(); return true; } catch (e) { if (e.name === 'AbortError') return false; } }
+    const a = h('a', { href: URL.createObjectURL(new Blob([bytes], { type: mime })), download: name }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); return true;
+  },
+  async doExport() {
+    const L = this.L; if (!L || !L.lines.some(l => l.type === 'cue')) { toast('Add some lyrics first'); return; } const r = this.cues(); if (!r.cues.length) { toast('No lines have times yet — tap some first'); return; }
+    const base = this.fileBase(); const ok = await this.saveText(base + '.srt', this.srt(r.cues), 'application/x-subrip');
+    if (ok && this.lrcBox.checked) await this.saveText(base + '.lrc', this.lrc(r.cues, L.title), 'text/plain');
+    if (ok) toast(`Exported ${r.cues.length} cue${r.cues.length === 1 ? '' : 's'} as ${base}.srt` + (this.lrcBox.checked ? ' and .lrc' : '') + (r.skipped ? ` — ${r.skipped} untimed line${r.skipped === 1 ? '' : 's'} left out` : '') + (L.offset ? ` (offset ${L.offset > 0 ? '+' : ''}${L.offset} s applied)` : ''), 6000);
+  },
+
+  // ---- UI
+  build() {
+    const el = this.el; el.textContent = ''; const L = this.L, b = (label, fn, title, cls) => h('button', { class: 'sm' + (cls ? ' ' + cls : ''), title: title || '', onclick: fn }, label);
+    const srcSel = h('select', { onchange: e => { const [k, id] = e.target.value.split('|'); this.srcKind = k; this.srcId = id || null; this.ensure().source = { kind: k, id: this.srcId }; this.changed(); this.prepare(); } }, this.sourceList().map(s => h('option', { value: s[0] + '|' + (s[1] || '') }, s[2])));
+    srcSel.value = this.srcKind + '|' + (this.srcId || ''); if (srcSel.value !== this.srcKind + '|' + (this.srcId || '')) { srcSel.selectedIndex = 0; this.srcKind = 'mix'; this.srcId = null; }
+    const trackIn = h('input', { type: 'text', value: L ? L.track || '' : '', placeholder: '01', style: 'width:42px', title: 'Track number for the file name', oninput: e => { this.ensure().track = e.target.value; this.changed(); this.updFile(); } });
+    const titleIn = h('input', { type: 'text', value: L ? L.title || '' : '', placeholder: 'Song title', style: 'width:180px', oninput: e => { this.ensure().title = e.target.value; this.changed(); this.updFile(); } });
+    this.fileLbl = h('span', { class: 'dim', style: 'font-size:12px' }); this.lrcBox = h('input', { type: 'checkbox' });
+    this.offIn = h('input', { type: 'text', value: L ? String(L.offset || 0) : '0', style: 'width:56px', title: 'Seconds added to every cue when exporting (negative = earlier)', onchange: e => { const v = parseFloat(e.target.value.replace(',', '.')); this.ensure().offset = isNaN(v) ? 0 : lyrR(v); e.target.value = String(this.L.offset); this.changed(); } });
+    this.status = h('span', { class: 'dim', style: 'font-size:12px' }, '');
+    el.append(h('div', { class: 'rbar' }, h('button', { class: 'sm primary', onclick: () => this.close() }, '✓ Done'), h('b', null, 'Lyrics timing'), h('span', { class: 'dim' }, 'Time against'), srcSel,
+      b('Paste lyrics…', () => this.pasteUI()), b('Load Stilus backup…', () => this.stilusUI(), 'Load lyrics from a Stilus backup .json'), h('span', { class: 'dim' }, 'Track'), trackIn, titleIn, this.fileLbl,
+      b('Export .srt', () => this.doExport(), 'Save the SRT file', 'primary'), h('label', { class: 'dim', style: 'font-size:12px;display:flex;gap:4px;align-items:center' }, this.lrcBox, 'also .lrc')));
+    // tap area
+    this.bigNow = h('div', { class: 'lyrNow' }); this.bigNext = h('div', { class: 'lyrNext' }); this.armPill = h('div', { class: 'lyrPill' });
+    this.playBtn = b('▶ Play', () => this.toggle(), 'Space also plays / pauses'); this.timeLbl = h('span', { class: 'mono', style: 'min-width:150px;display:inline-block' }, '0:00.000 / 0:00.000');
+    this.startBtn = h('button', { class: 'lyrTap start', onpointerdown: e => { e.preventDefault(); if (this.playing()) this.tapStart(); else toast('Press Play first'); } }, 'START line', h('small', null, ''));
+    this.endBtn = h('button', { class: 'lyrTap end', onpointerdown: e => { e.preventDefault(); if (this.playing()) this.tapEnd(); else toast('Press Play first'); } }, 'END line', h('small', null, ''));
+    this.rateLbl = h('b', null, '1.00×'); const rate = h('input', { type: 'range', min: 0.5, max: 1, step: 0.05, value: 1, style: 'width:120px', oninput: e => this.setRate(+e.target.value) });
+    this.restartIn = h('input', { type: 'text', value: '1', style: 'width:38px;text-align:center' });
+    this.keysBox = h('span', { class: 'dim', style: 'font-size:12px' });
+    el.append(h('div', { class: 'lyrTapArea' }, h('div', { class: 'lyrBig' }, this.armPill, this.bigNow, this.bigNext),
+      h('div', { class: 'lyrCtl' }, this.playBtn, this.startBtn, this.endBtn, b('↶ Undo last tap', () => this.undoTap()), h('span', { class: 'dim' }, 'Speed'), rate, this.rateLbl, this.timeLbl,
+        h('span', { class: 'dim' }, 'Restart from line'), this.restartIn, b('Go', () => this.restartFrom(parseInt(this.restartIn.value, 10) || 1)), b('⚙ Keys', () => this.keysUI(), 'Change the Start / End keys')),
+      h('div', { class: 'lyrCtl2' }, this.keysBox, this.status)));
+    // timeline strip
+    this.cv = h('canvas', { class: 'lyrCv' }); el.append(this.cv); this.g = this.cv.getContext('2d');
+    this.cv.addEventListener('pointerdown', e => this.pdown(e)); this.cv.addEventListener('pointermove', e => this.pmove(e)); this.cv.addEventListener('pointerup', e => this.pup(e)); this.cv.addEventListener('pointercancel', e => this.pup(e)); this.cv.addEventListener('wheel', e => this.wheel(e), { passive: false });
+    // list tools
+    el.append(h('div', { class: 'lyrTools' }, h('span', { class: 'dim' }, 'Cues'), b('↶ Undo edit', () => this.undoEdit()), b('Zoom −', () => this.zoom(1 / 1.4)), b('Zoom +', () => this.zoom(1.4)), b('Fit', () => { this.fit(); }),
+      h('span', { class: 'dim', style: 'margin-left:10px' }, 'Offset (s)'), this.offIn, b('Apply to cues', () => this.bake(), 'Bake the offset into every cue time'), b('Clear all times', () => { if (confirm('Clear every start and end time? (Undo edit brings them back)')) this.clearTimes(); })));
+    this.list = h('div', { class: 'lyrList' }); el.append(this.list); this.renderAll(); this.updFile(); this.refreshKeysUI(); this.setStatus(this.busy ? 'Preparing audio…' : '');
+  },
+  updFile() { if (this.fileLbl && this.L) this.fileLbl.textContent = '→ ' + this.fileBase() + '.srt'; else if (this.fileLbl) this.fileLbl.textContent = '→ ' + safeName(P.name) + '.srt'; },
+  renderAll() { this.renderList(); this.updateBig(); this.updFile(); this.draw(); },
+  refreshKeysUI() { if (!this.keysBox) return; this.keysBox.textContent = this.capturing ? `Press the key you want for ${this.capturing.toUpperCase()}… (Esc cancels)` : `Keys: ${KEYNAME(this.keys.start)} = start of line · ${KEYNAME(this.keys.end)} = end of line · Space = play / pause`; if (this.startBtn) { this.startBtn.lastChild.textContent = KEYNAME(this.keys.start); this.endBtn.lastChild.textContent = KEYNAME(this.keys.end); } },
+  keysUI() { const row = (w, lbl) => h('div', { style: 'display:flex;gap:10px;align-items:center;margin:6px 0' }, h('span', { style: 'width:110px' }, lbl), h('b', { class: 'kb', 'data-w': w }, KEYNAME(this.keys[w])), h('button', { class: 'sm', onclick: e => { this.capturing = w; this.refreshKeysUI(); this.kbMsg.textContent = 'Press the new key now…'; } }, 'Change'));
+    this.kbMsg = h('div', { class: 'dim', style: 'min-height:18px;margin-top:6px' }, ''); const reset = h('button', { class: 'sm', onclick: () => { this.keys = { start: 'ControlLeft', end: 'AltLeft' }; this.saveKeys(); this.refreshKeysUI(); m.el.querySelectorAll('.kb').forEach(k => k.textContent = KEYNAME(this.keys[k.dataset.w])); } }, 'Back to Ctrl / Alt');
+    const m = modal('Tap keys', h('div', null, row('start', 'Start of line'), row('end', 'End of line'), reset, this.kbMsg, h('div', { class: 'dim', style: 'margin-top:8px;font-size:12px' }, 'Any key works, including Ctrl, Alt, Shift and Search. Taps are only counted while the song is playing.')), [{ label: 'Close', primary: true }]);
+    const poll = setInterval(() => { if (!document.body.contains(m.el)) { clearInterval(poll); this.capturing = null; this.refreshKeysUI(); return; } m.el.querySelectorAll('.kb').forEach(k => k.textContent = this.capturing === k.dataset.w ? '…' : KEYNAME(this.keys[k.dataset.w])); if (!this.capturing) this.kbMsg.textContent = ''; }, 150); },
+  pasteUI() {
+    const ta = h('textarea', { rows: 14, style: 'width:100%;box-sizing:border-box;background:#000;color:var(--tx);border:1px solid var(--ln);border-radius:6px;padding:8px', placeholder: 'One line per cue.\nA line that is only [Verse 1] becomes a heading (not timed).', spellcheck: 'false' });
+    if (this.L && this.L.lines.length) ta.value = this.L.lines.map(l => l.type === 'heading' ? '[' + l.text + ']' : l.text).join('\n');
+    modal('Paste lyrics', h('div', null, ta, h('div', { class: 'dim', style: 'margin-top:6px;font-size:12px' }, 'Replacing the lyrics clears the times. Use “Undo edit” to get them back.')), [{ label: 'Cancel' }, { label: 'Use these lyrics', primary: true, fn: () => { const ln = this.parsePaste(ta.value); if (!ln.some(l => l.type === 'cue')) { toast('No lyric lines found'); return; } this.setLines(ln); } }]);
+    setTimeout(() => ta.focus(), 30);
+  },
+  stilusUI() {
+    const inp = h('input', { type: 'file', accept: '.json,application/json', onchange: async e => { const f = e.target.files[0]; if (!f) return; let j; try { j = JSON.parse(await f.text()); } catch (er) { toast('That file is not valid JSON'); return; }
+      if (j.format && j.format !== 'lyricwriter-backup') { toast('This is not a Stilus backup (format: ' + j.format + ')', 5000); return; }
+      const songs = this.stilusSongs(j); if (!songs.length) { toast('No songs found in that file'); return; } const pick = s => { const ln = this.stilusLines(s); if (!ln.some(l => l.type === 'cue')) { toast('That song has no lyrics'); return; } this.setLines(ln, { title: s.title || s.name || '', songRef: s.id != null ? { app: 'stilus', id: String(s.id), title: s.title || s.name || '' } : null }); this.build(); this.setStatus('Loaded “' + (s.title || s.name || 'song') + '” from the backup'); };
+      if (songs.length === 1) { pick(songs[0]); return; }
+      const sel = h('select', { size: 10, style: 'width:100%' }, songs.map((s, i) => h('option', { value: i }, s.title || s.name || 'Untitled ' + (i + 1)))); sel.selectedIndex = 0;
+      modal('Which song?', sel, [{ label: 'Cancel' }, { label: 'Load', primary: true, fn: () => pick(songs[sel.selectedIndex]) }]); } });
+    inp.click();
+  },
+  updateBig() {
+    const L = this.L; if (!this.bigNow) return; const cue = i => i >= 0 && L ? L.lines[i].text : '';
+    if (!L || !this.cueIdx.length) { this.bigNow.textContent = 'No lyrics yet'; this.bigNext.textContent = 'Paste lyrics or load a Stilus backup'; this.armPill.textContent = ''; this.armPill.className = 'lyrPill'; return; }
+    const ci = this.cueIdx; let lastStamped = -1; for (const i of ci) if (L.lines[i].start != null) lastStamped = i; const nowIdx = this.open >= 0 ? this.open : lastStamped;
+    this.bigNow.textContent = nowIdx >= 0 ? cue(nowIdx) : '—'; this.bigNow.classList.toggle('open', this.open >= 0);
+    this.bigNext.textContent = this.armed >= 0 ? cue(this.armed) : 'All lines timed ✓'; const n = this.armed >= 0 ? ci.indexOf(this.armed) + 1 : 0;
+    this.armPill.className = 'lyrPill' + (this.open >= 0 ? ' timing' : this.armed >= 0 ? ' armed' : ' done');
+    this.armPill.textContent = this.open >= 0 ? `Timing line ${ci.indexOf(this.open) + 1} — tap END (or START for the next line)` : this.armed >= 0 ? `ARMED: line ${n} of ${ci.length} — tap START when it begins` : 'Every line has a start time';
+    this.restartIn && this.armed >= 0 && (this.restartIn.value = String(n));
+  },
+  markArmed() { this.rows && this.rows.forEach((r, i) => { if (!r) return; r.classList.toggle('armed', i === this.armed); r.classList.toggle('open', i === this.open); }); const r = this.rows && this.rows[this.armed >= 0 ? this.armed : this.open]; if (r) r.scrollIntoView({ block: 'center', behavior: 'smooth' }); },
+  renderList() {
+    const L = this.L, list = this.list; if (!list) return; list.textContent = ''; this.rows = []; this.fields = [];
+    if (!L || !L.lines.length) { list.append(h('div', { class: 'dim', style: 'padding:24px' }, 'No lyrics yet. Use “Paste lyrics…” (one line per cue) or “Load Stilus backup…”.')); return; }
+    let n = 0;
+    L.lines.forEach((l, i) => {
+      if (l.type === 'heading') { const inp = h('input', { type: 'text', value: l.text, class: 'lyrTxt', onchange: e => { this.snapEdit(); l.text = e.target.value; this.changed(); } });
+        const r = h('div', { class: 'lyrRow head' }, h('span', { class: 'lyrN' }, '§'), inp, h('span', { class: 'dim', style: 'flex:1;font-size:11px' }, 'heading (not timed)'), h('button', { class: 'sm', title: 'Make this a timed line', onclick: () => this.toggleType(i) }, '→ line'), h('button', { class: 'sm', title: 'Delete', onclick: () => this.del(i) }, '✕')); this.rows[i] = r; list.append(r); return; }
+      n++; const txt = h('input', { type: 'text', value: l.text, class: 'lyrTxt', placeholder: '(empty line)', onchange: e => { this.snapEdit(); l.text = e.target.value; this.changed(); this.updateBig(); this.draw(); } });
+      const tf = w => h('input', { type: 'text', class: 'lyrT', value: '', onchange: e => this.setTime(i, w, e.target.value.trim() === '' ? undefined : lyrParse(e.target.value)) });
+      const sIn = tf('s'), eIn = tf('e'); const nb = (w, d) => h('button', { class: 'sm nb', title: (w === 's' ? 'Start ' : 'End ') + (d > 0 ? '+' : '−') + '0.05 s', onclick: () => this.nudge(i, w, d) }, d > 0 ? '+' : '−');
+      const r = h('div', { class: 'lyrRow', onclick: ev => { if (ev.target.tagName === 'BUTTON' || ev.target.tagName === 'INPUT') return; this.playCue(i); } },
+        h('span', { class: 'lyrN', title: 'Click the row to play this line' }, n), txt, nb('s', -0.05), sIn, nb('s', 0.05), h('span', { class: 'dim' }, '→'), nb('e', -0.05), eIn, nb('e', 0.05),
+        h('button', { class: 'sm', title: 'Play this line', onclick: () => this.playCue(i) }, '▶'), h('button', { class: 'sm', title: 'Restart tapping from this line', onclick: () => this.restartFrom(n) }, '⟲'),
+        h('button', { class: 'sm', title: 'Split at the text cursor (or in the middle)', onclick: () => this.split(i, txt.selectionStart === txt.selectionEnd && document.activeElement === txt ? txt.selectionStart : (txt._cur || 0)) }, '✂'), h('button', { class: 'sm', title: 'Merge with the next line', onclick: () => this.merge(i) }, '⤵'), h('button', { class: 'sm', title: 'Add a line below', onclick: () => this.addAfter(i) }, '+'),
+        h('button', { class: 'sm', title: 'Make this a heading', onclick: () => this.toggleType(i) }, '§'), h('button', { class: 'sm', title: 'Delete this line', onclick: () => this.del(i) }, '✕'));
+      txt.addEventListener('keyup', () => { txt._cur = txt.selectionStart; }); txt.addEventListener('click', () => { txt._cur = txt.selectionStart; }); txt.addEventListener('blur', () => { txt._cur = txt.selectionStart; });
+      this.fields[i] = { s: sIn, e: eIn }; this.rows[i] = r; list.append(r); this.syncRow(i);
+    });
+    this.markArmedNoScroll();
+  },
+  markArmedNoScroll() { this.rows && this.rows.forEach((r, i) => { if (!r) return; r.classList.toggle('armed', i === this.armed); r.classList.toggle('open', i === this.open); r.classList.toggle('sel', i === this.selIdx); }); },
+  syncRow(i) { const L = this.L; if (i == null || i < 0 || !L || !this.fields || !this.fields[i]) { this.markArmedNoScroll(); return; } const l = L.lines[i], f = this.fields[i]; if (!l || !f) return; if (document.activeElement !== f.s) f.s.value = l.start == null ? '' : lyrSec(l.start); if (document.activeElement !== f.e) f.e.value = l.end == null ? '' : lyrSec(l.end); this.markArmedNoScroll(); },
+  syncSel() { this.markArmedNoScroll(); },
+
+  // ---- timeline strip
+  size() { const cv = this.cv; if (!cv) return; const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1; this.cvW = r.width; this.cvH = r.height; cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d); this.g.setTransform(d, 0, 0, d, 0, 0); if (!this.pps) this.fit(); this.draw(); },
+  fit() { if (!this.cvW) return; this.pps = this.dur > 0 ? Math.max(4, (this.cvW - 12) / this.dur) : 40; this.sx = 0; this.draw(); },
+  zoom(f) { const c = this.sx + this.cvW / this.pps / 2; this.pps = clamp(this.pps * f, 3, 2000); this.sx = Math.max(0, c - this.cvW / this.pps / 2); this.draw(); },
+  t2x(t) { return (t - this.sx) * this.pps; }, x2t(x) { return x / this.pps + this.sx; },
+  wheel(e) { e.preventDefault(); if (e.ctrlKey || e.metaKey) { const t = this.x2t(e.offsetX); this.pps = clamp(this.pps * (e.deltaY < 0 ? 1.2 : 1 / 1.2), 3, 2000); this.sx = Math.max(0, t - e.offsetX / this.pps); } else this.sx = Math.max(0, this.sx + (e.deltaX || e.deltaY) / this.pps); this.draw(); },
+  edgeHit(x, y) { const L = this.L; if (!L) return null; const lane = y > this.cvH - 52; if (!lane) return null; let best = null, bd = 8; L.lines.forEach((l, i) => { if (l.type !== 'cue' || l.start == null) return; const e = l.end != null ? l.end : l.start + 0.5; for (const [w, t] of [['s', l.start], ['e', e]]) { if (w === 'e' && l.end == null) continue; const d = Math.abs(this.t2x(t) - x); if (d < bd) { bd = d; best = { i, w }; } } }); return best; },
+  cueAt(x, y) { const L = this.L; if (!L || y <= this.cvH - 52) return -1; const t = this.x2t(x); for (let i = 0; i < L.lines.length; i++) { const l = L.lines[i]; if (l.type === 'cue' && l.start != null && t >= l.start && t <= (l.end != null ? l.end : l.start + 0.5)) return i; } return -1; },
+  pdown(e) { this.cv.setPointerCapture(e.pointerId); const x = e.offsetX, y = e.offsetY, hit = this.edgeHit(x, y); this.moved = false; this.down = { x, y }; if (hit) { this.snapEdit(); this.drag = hit; } else this.drag = null; },
+  pmove(e) { const x = e.offsetX, y = e.offsetY; if (!this.drag) { this.cv.style.cursor = this.edgeHit(x, y) ? 'ew-resize' : 'pointer'; return; } if (Math.abs(x - this.down.x) > 2) this.moved = true; const L = this.L, l = L.lines[this.drag.i]; let t = lyrR(clamp(this.x2t(x), 0, this.dur)); if (this.drag.w === 's') { const lim = (l.end != null ? l.end : l.start + 0.5) - 0.01; l.start = Math.min(t, lim); } else { l.end = Math.max(t, l.start + 0.01); } this.syncRow(this.drag.i); this.draw(); },
+  pup(e) { if (this.drag) { if (this.moved) this.changed(); else this.editStack.pop(); this.drag = null; return; } const x = e.offsetX, y = e.offsetY; if (Math.abs(x - this.down.x) > 4) return; const c = this.cueAt(x, y); if (c >= 0) this.playCue(c); else this.seek(this.x2t(x)); },
+  draw() {
+    const g = this.g; if (!g || !this.cvW) return; const W = this.cvW, H = this.cvH, wh = H - 52 - 18; g.clearRect(0, 0, W, H); g.fillStyle = '#0e0e12'; g.fillRect(0, 0, W, H);
+    // ruler
+    g.fillStyle = '#8f8fa0'; g.font = '10px system-ui'; g.textBaseline = 'top'; const steps = [0.1, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300]; let st = steps.find(s => s * this.pps >= 70) || 300; const t0 = Math.floor(this.sx / st) * st;
+    for (let t = t0; t < this.sx + W / this.pps + st; t += st) { const x = this.t2x(t); g.fillRect(x, 0, 1, 14); g.fillText(lyrSec(t).replace(/\.000$/, ''), x + 3, 2); }
+    // waveform
+    const mid = 18 + wh / 2; g.fillStyle = '#3a6f8f'; const E = this.env;
+    if (E) for (let x = 0; x < W; x++) { const a = Math.floor(this.x2t(x) / E.per), b = Math.max(a + 1, Math.floor(this.x2t(x + 1) / E.per)); let lo = 0, hi = 0; for (let k = Math.max(0, a); k < Math.min(E.mn.length, b); k++) { if (E.mn[k] < lo) lo = E.mn[k]; if (E.mx[k] > hi) hi = E.mx[k]; } if (hi > lo) g.fillRect(x, mid - hi * wh / 2, 1, Math.max(1, (hi - lo) * wh / 2)); }
+    else { g.fillStyle = '#8f8fa0'; g.fillText(this.busy ? 'Preparing audio…' : 'No audio yet', 10, 30); }
+    // cues
+    const L = this.L; if (L) { const ly = H - 50; g.font = '11px system-ui'; g.textBaseline = 'middle'; let k = 0; L.lines.forEach((l, i) => { if (l.type !== 'cue') return; k++; if (l.start == null) return; const x1 = this.t2x(l.start), x2 = this.t2x(l.end != null ? l.end : l.start + 0.5); if (x2 < 0 || x1 > W) return; const on = i === this.selIdx || i === this.open;
+        g.fillStyle = l.end == null ? 'rgba(255,183,77,.55)' : (k % 2 ? 'rgba(76,194,255,.55)' : 'rgba(61,220,151,.5)'); if (on) g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(x1, ly, Math.max(2, x2 - x1), 46);
+        g.fillStyle = '#fff'; g.fillRect(x1, ly, 2, 46); if (l.end != null) g.fillRect(x2 - 2, ly, 2, 46); g.save(); g.beginPath(); g.rect(x1, ly, Math.max(0, x2 - x1 - 3), 46); g.clip(); g.fillStyle = '#04040a'; g.fillText(k + ' ' + l.text, x1 + 5, ly + 23); g.restore(); }); }
+    // playhead
+    const px = this.t2x(this.now()); g.fillStyle = '#ff4d5e'; g.fillRect(px, 0, 2, H);
+  }
+};
+// trackEnd: where a track's last clip ends (frames), used when timing against a single track
+function trackEnd(t) { let m = 0; for (const c of t.clips) m = Math.max(m, c.start + c.len); return Math.max(1, m); }
+
 // ---- project management, top bar, keyboard, startup -----------------------------------------
 function normalize(p) {
   p.view = Object.assign({ pps: 60, scroll: 0, vscroll: 0, ph: 0 }, p.view);
@@ -3296,7 +3626,7 @@ function newMidiTrackUI(e) {
 }
 function helpUI() {
   const rows = [['Space', 'Play / pause'], ['S', 'Split at playhead'], ['Delete', 'Delete clip / highlighted section'], ['Ctrl+Z / Ctrl+Shift+Z', 'Undo / redo'], ['Ctrl+C / X / V', 'Copy / cut / paste clips'], ['Ctrl+D', 'Duplicate clip'], ['Ctrl+A', 'Select all clips'],
-    ['M', 'Add marker at playhead'], ['V / R', 'Clip tool / Range tool'], ['+ / −', 'Zoom in / out'], ['← →', 'Nudge playhead (Shift = 1 s)'], ['Home', 'Playhead to start'], ['Ctrl + wheel', 'Zoom'], ['Shift + wheel', 'Scroll sideways'], ['Drag clip edge', 'Trim'], ['Drag the dots on a clip', 'Fade in / out'], ['Drag on empty lane', 'Highlight a section'], ['Click the time', 'Type a time (mm:ss.ss) to jump'], ['Right-click a highlight', 'Mute that section (Project ▸ Mute list… to edit times)'], ['Master button (top bar)', 'Master one finished WAV, or this project\'s mix'], ['Project ▸ Drum kit setup…', 'Do this once: record or load a kick, snare and hat so drum conversion knows your sounds'], ['Project ▸ Audio → MIDI…', 'Pick a clip, choose drums / bass / melody / chords, preview, then Create'], ['Audio → MIDI: Simplify slider', 'Higher = fewer, longer notes (smooths vibrato and breaths). For chords: fewer chord changes. Type the chords you know to lock them in'], ['Double-click a MIDI clip', 'Open the piano roll'], ['Piano roll: double-click', 'Add a note; drag to move, drag the right edge to resize'], ['Piano roll: drag empty space', 'Select several notes; Delete removes, ← → ↑ ↓ nudge, Ctrl+A all, Ctrl+D duplicate'], ['Project ▸ Export MIDI file…', 'Standard MIDI file (tempo, key, chord markers) for other apps']];
+    ['M', 'Add marker at playhead'], ['V / R', 'Clip tool / Range tool'], ['+ / −', 'Zoom in / out'], ['← →', 'Nudge playhead (Shift = 1 s)'], ['Home', 'Playhead to start'], ['Ctrl + wheel', 'Zoom'], ['Shift + wheel', 'Scroll sideways'], ['Drag clip edge', 'Trim'], ['Drag the dots on a clip', 'Fade in / out'], ['Drag on empty lane', 'Highlight a section'], ['Click the time', 'Type a time (mm:ss.ss) to jump'], ['Right-click a highlight', 'Mute that section (Project ▸ Mute list… to edit times)'], ['Master button (top bar)', 'Master one finished WAV, or this project\'s mix'], ['Project ▸ Drum kit setup…', 'Do this once: record or load a kick, snare and hat so drum conversion knows your sounds'], ['Project ▸ Audio → MIDI…', 'Pick a clip, choose drums / bass / melody / chords, preview, then Create'], ['Audio → MIDI: Simplify slider', 'Higher = fewer, longer notes (smooths vibrato and breaths). For chords: fewer chord changes. Type the chords you know to lock them in'], ['Project ▸ Lyrics timing…', 'Tap lyrics against the song (Ctrl = start of line, Alt = end of line, both changeable), edit the cues, export .srt / .lrc'], ['Double-click a MIDI clip', 'Open the piano roll'], ['Piano roll: double-click', 'Add a note; drag to move, drag the right edge to resize'], ['Piano roll: drag empty space', 'Select several notes; Delete removes, ← → ↑ ↓ nudge, Ctrl+A all, Ctrl+D duplicate'], ['Project ▸ Export MIDI file…', 'Standard MIDI file (tempo, key, chord markers) for other apps']];
   modal('Shortcuts', h('div', null, rows.map(r => h('div', { class: 'li' }, h('b', null, r[0]), h('span', { class: 'dim' }, r[1])))), [{ label: 'Close', primary: true }]);
 }
 function syncUndoBtns() { const u = $('#undo'), r = $('#redo'); if (u) { u.disabled = !H.undo.length; r.disabled = !H.redo.length; } }
@@ -3333,7 +3663,7 @@ function wireUI() {
     { label: 'New project…', fn: newProjectUI }, { label: 'Open project…', fn: openProjectUI },
     { label: 'Rename project…', fn: async () => { const v = await askText('Rename project', P.name); if (v && v.trim()) { P.name = v.trim(); $('#projBtn').textContent = P.name; document.title = P.name + ' — Studio'; Save.mark(); } } },
     '-', { label: 'Recover snapshot…', fn: recoverUI }, { label: 'Mute list…', fn: muteListUI },
-    '-', { label: 'New MIDI track…', fn: newMidiTrackUI }, { label: 'Audio → MIDI…', fn: () => A2MUI.open() }, { label: 'Drum kit setup…', fn: () => A2MUI.kitSetup() }, { label: 'Export MIDI file…', fn: () => MIDI.save() },
+    '-', { label: 'New MIDI track…', fn: newMidiTrackUI }, { label: 'Audio → MIDI…', fn: () => A2MUI.open() }, { label: 'Drum kit setup…', fn: () => A2MUI.kitSetup() }, { label: 'Lyrics timing…', fn: () => LYR.open_panel() }, { label: 'Export MIDI file…', fn: () => MIDI.save() },
     '-', { label: 'Free unused audio', fn: freeUnused }, { label: 'Recording offset…', fn: settingsUI },
     '-', { label: 'Keyboard shortcuts', fn: helpUI }]); };
   $('#toStart').onclick = () => { Engine.seek(0); setScroll(0); UI.odirty = true; };
